@@ -148,6 +148,29 @@ func toApiParameters(paramsString string) ([]*api.Parameter, error) {
 	return apiParams, nil
 }
 
+func toApiRuntimeParameters(paramsString string) ([]*api.Parameter, error) {
+	if paramsString == "" {
+		return nil, nil
+	}
+	params, err := util.UnmarshalParameters(util.ArgoWorkflow, paramsString)
+	if err != nil {
+		return nil, util.NewInternalServerError(err, "Parameter with wrong format is stored")
+	}
+	apiParams := make([]*api.Parameter, 0)
+	for _, param := range params {
+		var value string
+		if param.Value != nil {
+			value = *param.Value
+		}
+		apiParam := api.Parameter{
+			Name:  param.Name,
+			Value: value,
+		}
+		apiParams = append(apiParams, &apiParam)
+	}
+	return apiParams, nil
+}
+
 func toApiRun(run *model.Run) *api.Run {
 	params, err := toApiParameters(run.Parameters)
 	if err != nil {
