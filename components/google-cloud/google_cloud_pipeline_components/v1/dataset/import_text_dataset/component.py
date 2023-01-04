@@ -72,7 +72,7 @@ def text_dataset_import(
                 Instantiated representation of the managed dataset resource.
   """
   return ContainerSpec(
-      image='gcr.io/ml-pipeline/google-cloud-pipeline-components:latest',
+      image='gcr.io/ml-pipeline/google-cloud-pipeline-components:2.0.0b0',
       command=[
           'python3', '-m',
           'google_cloud_pipeline_components.container.aiplatform.remote_runner',
