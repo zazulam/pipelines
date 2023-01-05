@@ -14,19 +14,14 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('..'))
 
-import kfp
 from kfp import dsl
 
-print(kfp.__version__)
-
-def component_decorator(func, **kwargs):
+def container_component_decorator(func, **kwargs):
+	return func
+def component_decorator(func, *, **kwargs):
 	return func
 dsl.component = component_decorator
-dsl.container_component = component_decorator
-
-# !pip3 uninstall -y google-cloud-pipeline-components
-# !pip3 install -U -q 'git+https://github.com/kubeflow/pipelines.git@test-gcpc-2.0.0b0#subdirectory=sdk/python'
-
+dsl.container_component = container_component_decorator
 
 
 
