@@ -14,6 +14,18 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('..'))
 
+import kfp
+
+def component_decorator(method):
+    def wrapper(*args, **kwargs):
+    	component = method(*args, **kwargs)
+    	component.__doc__ = args[0].__doc__
+    	return component
+    return wrapper
+kfp.dsl.component = component_decorator(kfp.dsl.component)
+kfp.dsl.container_component = component_decorator(kfp.dsl.container_component)
+
+
 
 # -- Project information -----------------------------------------------------
 
