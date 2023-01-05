@@ -16,10 +16,12 @@
 
 from kfp import dsl
 
-def container_component_decorator(func, **kwargs):
+def container_component_decorator(func):
 	return func
-def component_decorator(func, *, **kwargs):
-	return func
+def component_decorator(*args, **kwargs):
+    def decorator(func):
+    	return func
+    return decorator
 dsl.component = component_decorator
 dsl.container_component = container_component_decorator
 
