@@ -15,6 +15,9 @@
 # sys.path.insert(0, os.path.abspath('..'))
 
 import kfp
+from kfp import dsl
+
+print(kfp.__version__)
 
 def component_decorator(method):
     def wrapper(*args, **kwargs):
@@ -22,8 +25,8 @@ def component_decorator(method):
     	component.__doc__ = args[0].__doc__
     	return component
     return wrapper
-kfp.dsl.component = component_decorator(kfp.dsl.component)
-kfp.dsl.container_component = component_decorator(kfp.dsl.container_component)
+dsl.component = component_decorator(kfp.dsl.component)
+dsl.container_component = component_decorator(kfp.dsl.container_component)
 
 
 
