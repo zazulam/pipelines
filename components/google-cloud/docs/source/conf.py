@@ -25,8 +25,8 @@ def component_decorator(method):
     	component.__doc__ = args[0].__doc__
     	return component
     return wrapper
-dsl.component = component_decorator(kfp.dsl.component)
-dsl.container_component = component_decorator(kfp.dsl.container_component)
+dsl.component = component_decorator(dsl.component)
+dsl.container_component = component_decorator(dsl.container_component)
 
 
 
