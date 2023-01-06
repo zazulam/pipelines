@@ -23,7 +23,7 @@ from kfp.components.types import type_utils
 from kfp.pipeline_spec import pipeline_spec_pb2
 
 
-class BaseComponent(abc.ABC, Callable):
+class BaseComponent(Callable):
     """Base class for a component.
 
     **Note:** ``BaseComponent`` is not intended to be used to construct components directly. Use ``@kfp.dsl.component`` or ``kfp.components.load_component_from_*()`` instead.
