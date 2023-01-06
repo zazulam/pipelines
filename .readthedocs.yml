@@ -8,7 +8,5 @@ python:
     - method: pip
       path: components/google-cloud
     - method: pip
-      path: .
-      extra_requirements:
-        - sdk/python
+      path: sdk/python
 
