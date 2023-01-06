@@ -13,7 +13,7 @@
 # limitations under the License.
 """Functions for loading components from compiled YAML."""
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Callable
 
 from google.protobuf import json_format
 from kfp import components
@@ -57,7 +57,7 @@ class YamlComponent(components.BaseComponent):
         raise NotImplementedError
 
 
-def load_component_from_text(text: str) -> YamlComponent:
+def load_component_from_text(text: str) -> Callable:
     """Loads a component from text.
 
     Args:
@@ -71,7 +71,7 @@ def load_component_from_text(text: str) -> YamlComponent:
         component_yaml=text)
 
 
-def load_component_from_file(file_path: str) -> YamlComponent:
+def load_component_from_file(file_path: str) -> Callable:
     """Loads a component from a file.
 
     Args:
@@ -93,7 +93,7 @@ def load_component_from_file(file_path: str) -> YamlComponent:
 
 def load_component_from_url(url: str,
                             auth: Optional[Tuple[str,
-                                                 str]] = None) -> YamlComponent:
+                                                 str]] = None) -> Callable:
     """Loads a component from a URL.
 
     Args:
