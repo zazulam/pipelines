@@ -13,6 +13,7 @@
 # limitations under the License.
 """Base class for KFP components."""
 
+import abc
 from typing import List
 
 from collections.abc import Callable
@@ -22,7 +23,7 @@ from kfp.components.types import type_utils
 from kfp.pipeline_spec import pipeline_spec_pb2
 
 
-class BaseComponent(Callable):
+class BaseComponent(abc.ABC, Callable):
     """Base class for a component.
 
     **Note:** ``BaseComponent`` is not intended to be used to construct components directly. Use ``@kfp.dsl.component`` or ``kfp.components.load_component_from_*()`` instead.
