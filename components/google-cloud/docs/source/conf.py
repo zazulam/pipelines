@@ -14,8 +14,8 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('..'))
 
-!pip3 uninstall -y kfp
-!pip3 install -U -q 'git+https://github.com/kubeflow/pipelines.git@test-gcpc-2.0.0b0#subdirectory=sdk/python'
+pip3 uninstall -y kfp
+pip3 install -U -q 'git+https://github.com/kubeflow/pipelines.git@test-gcpc-2.0.0b0#subdirectory=sdk/python'
 
 from kfp import dsl
 
