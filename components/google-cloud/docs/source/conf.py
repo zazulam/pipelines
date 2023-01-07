@@ -17,16 +17,39 @@
 # pip uninstall -y kfp
 # pip install -U -q 'git+https://github.com/kubeflow/pipelines.git@test-gcpc-2.0.0b0#subdirectory=sdk/python'
 
-from kfp import dsl
+from kfp import dsl, components
+from typing import Callable
 
 def container_component_decorator(func):
 	return func
+
 def component_decorator(*args, **kwargs):
     def decorator(func):
     	return func
     return decorator
+
+def load_component_from_file(file_path: str) -> Callable:
+    """Loads a component from a file.
+
+    Args:
+        file_path (str): Filepath to a YAML component.
+
+    Returns:
+        Component loaded from YAML.
+
+    Example:
+      ::
+
+        from kfp import components
+
+        components.load_component_from_file('~/path/to/pipeline.yaml')
+    """
+    with open(file_path, 'r') as component_stream:
+        return components.load_component_from_text(component_stream.read())
+
 dsl.component = component_decorator
 dsl.container_component = container_component_decorator
+components.load_component_from_file = load_component_from_file
 
 
 
