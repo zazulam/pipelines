@@ -17,7 +17,7 @@
 # pip uninstall -y kfp
 # pip install -U -q 'git+https://github.com/kubeflow/pipelines.git@test-gcpc-2.0.0b0#subdirectory=sdk/python'
 
-from kfp import dsl, components
+from kfp import dsl, components, deprecated
 from typing import Callable
 
 def container_component_decorator(func):
@@ -28,28 +28,28 @@ def component_decorator(*args, **kwargs):
     	return func
     return decorator
 
-def load_component_from_file(file_path: str) -> Callable:
-    """Loads a component from a file.
+# def load_component_from_file(file_path: str) -> Callable:
+#     """Loads a component from a file.
 
-    Args:
-        file_path (str): Filepath to a YAML component.
+#     Args:
+#         file_path (str): Filepath to a YAML component.
 
-    Returns:
-        Component loaded from YAML.
+#     Returns:
+#         Component loaded from YAML.
 
-    Example:
-      ::
+#     Example:
+#       ::
 
-        from kfp import components
+#         from kfp import components
 
-        components.load_component_from_file('~/path/to/pipeline.yaml')
-    """
-    with open(file_path, 'r') as component_stream:
-        return components.load_component_from_text(component_stream.read())
+#         components.load_component_from_file('~/path/to/pipeline.yaml')
+#     """
+#     with open(file_path, 'r') as component_stream:
+#         return components.load_component_from_text(component_stream.read())
 
 dsl.component = component_decorator
 dsl.container_component = container_component_decorator
-components.load_component_from_file = load_component_from_file
+components.load_component_from_file = deprecated.components.load_component_from_file
 
 
 
