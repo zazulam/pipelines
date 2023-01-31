@@ -358,7 +358,21 @@ func makePodSpecPatch(
 	}
 	accelerator := container.GetResources().GetAccelerator()
 	if accelerator != nil {
-		return "", fmt.Errorf("accelerator resources are not supported yet: https://github.com/kubeflow/pipelines/issues/7043")
+		//	return "", fmt.Errorf("accelerator resources are not supported yet: https://github.com/kubeflow/pipelines/issues/7043")
+		switch accelerator.Type {
+		case "nvidia-tesla-k80":
+			res.Limits["nvidia.com/gpu"], err = k8sres.ParseQuantity(fmt.Sprintf("%vG", accelerator.Count))
+			if err != nil {
+				return "", fmt.Errorf("error parsing accelerator count for nvidia-tesla-k80: %w", err)
+			}
+		case "tpu-v3":
+			res.Limits["cloud-tpus.google.com/v3"], err = k8sres.ParseQuantity(fmt.Sprintf("%vG", accelerator.Count))
+			if err != nil {
+				return "", fmt.Errorf("error parsing accelerator count for tpu-v3: %w", err)
+			}
+		default:
+			return "", fmt.Errorf("accelerator resources name is invalid. Can only be \"nvidia-tesla-k80\" or \"tpu-v3.")
+		}
 	}
 	podSpec := &k8score.PodSpec{
 		Containers: []k8score.Container{{
