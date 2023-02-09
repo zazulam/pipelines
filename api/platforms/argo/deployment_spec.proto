@@ -1,0 +1,77 @@
+// Copyright 2023 The Kubeflow Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/kubeflow/pipelines/api/platforms/argo/deploymentspec";
+package deployment_spec;
+
+import "google/protobuf/struct.proto";
+
+message ExecutorConfig {
+    repeated SecretAsVolumeItem secret_as_volume = 1;
+    repeated SecretAsEnvItem secret_as_env = 2;
+    repeated PVCVolume pvc_volume = 3;
+}
+
+message SecretAsVolumeItem {
+    // name of the Secret
+    string secret_name = 1;
+    // container path to mount the Secret data
+    string mount_path = 2;
+}
+
+message SecretKeyToEnvMap {
+    // corresponds to a key of the Secret.data field
+    string secret_key = 1;
+    // env var to which to set the value for secret_key
+    string env_var_name = 2;
+}
+message SecretAsEnvItem {
+    // name of the Secret
+    string secret_name = 1;
+    repeated SecretKeyToEnvMap key_to_env = 2;
+}
+
+message PVCVolume {
+    // identifier for the PVC
+    oneof name {
+        // name of an existing PVC resource
+        string pvc_name = 1;
+        // suffix to append to to {{workflow.name}}- prefix
+        // to enable a dynamically generated PVC name
+        string generate_pvc_name = 2;
+        // reference to a PVC created for another task
+        // corresponds to the other task's created_pvc_reference value
+        string pvc_reference = 3;
+    }
+    // corresponds to PersistentVolumeClaim.spec.accessMode field
+    repeated string access_modes = 4;
+    // corresponds to PersistentVolumeClaim.spec.resources.requests.storage field
+    string size = 5;
+    // corresponds to Container.volumeMounts[i].mountPath field
+    string mount_path = 6;
+    // corresponds to PersistentVolumeClaim.spec.storageClassName field
+    string storage_class = 7;
+    // corresponds to PersistentVolumeClaim.spec.volumeName field
+    string volume_name = 8;
+    // instructs Argo compiler to add a delete volume task after this task
+    google.protobuf.Struct annotations = 9;
+    // instructs Argo compiler to add a delete volume task after this task
+    bool delete_after = 10;
+    // the identifier for this PVC, so that downstream tasks that use the same
+    // PVC can reference the PVC created for this task; instructs the Argo
+    // compiler to use the same PVC name placeholder for downstream tasks
+    string created_pvc_reference = 11;
+}

@@ -30,6 +30,16 @@ golang: v2alpha1/*.proto
 		$(PREBUILT_REMOTE_IMAGE)  \
 		sh -c 'cd /go/src/github.com/kubeflow/pipelines/api && make generate'
 
+
+# Generate golang package for platform specific on KFP.
+.PHONY: kfp
+kfp: platforms/argo/*.proto
+	docker run --interactive --rm \
+		--user $$(id -u):$$(id -g) \
+		--mount type=bind,source="$$(pwd)/..",target=/go/src/github.com/kubeflow/pipelines \
+		$(PREBUILT_REMOTE_IMAGE)  \
+		sh -c 'cd /go/src/github.com/kubeflow/pipelines/api && make kfp-v2'
+
 # Delete all generated proto go packages.
 .PHONY: clean-go
 clean-go:
@@ -73,6 +83,16 @@ go_cachekey: v2alpha1/pipeline_spec.proto v2alpha1/cache_key.proto
 		--go_out=go/cachekey \
 		--go_opt=paths=source_relative \
 		cache_key.proto
+
+# Generates golang package for platform-specific features on KFP V2
+.PHONY: kfp-v2
+kfp-v2: platforms/argo/deployment_spec.proto 
+	mkdir -p platforms/argo/go/deploymentspec
+	cd platforms/argo && protoc \
+		--go_out=go/deploymentspec \
+		--go_opt=paths=source_relative \
+		-I=. \
+		deployment_spec.proto
 
 # Fetch dependency proto
 v2alpha1/google/rpc/status.proto:
