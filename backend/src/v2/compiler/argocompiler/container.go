@@ -19,6 +19,7 @@ import (
 	"github.com/kubeflow/pipelines/api/v2alpha1/go/pipelinespec"
 	"github.com/kubeflow/pipelines/backend/src/v2/component"
 	k8score "k8s.io/api/core/v1"
+	"pipelines/api/platforms/argo/go/deploymentspec"
 )
 
 const (
@@ -49,6 +50,7 @@ type containerDriverInputs struct {
 	container      string
 	parentDagID    string
 	iterationIndex string // optional, when this is an iteration task
+	config         deploymentspec.ExecutorConfig
 }
 
 func (c *workflowCompiler) containerDriverTask(name string, inputs containerDriverInputs) (*wfapi.DAGTask, *containerDriverOutputs) {

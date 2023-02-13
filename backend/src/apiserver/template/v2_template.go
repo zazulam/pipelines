@@ -15,6 +15,7 @@
 package template
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 
@@ -30,7 +31,10 @@ import (
 )
 
 type V2Spec struct {
+	// V2 PipelineSpec
 	spec *pipelinespec.PipelineSpec
+	// Platform-specific configurations
+	platformConfigs map[string]structpb.Struct
 }
 
 // Converts modelJob to ScheduledWorkflow.
@@ -106,8 +110,17 @@ func (t *V2Spec) GetTemplateType() TemplateType {
 }
 
 func NewV2SpecTemplate(template []byte) (*V2Spec, error) {
+	// Split the template by yaml document seperator, three dashes
+	templates := bytes.Split(template, []byte("---"))
+
+	// There has to be at least one yaml document, which is the pipeline spec
+	if len(templates) == 0 {
+		return nil, util.NewInvalidInputErrorWithDetails(ErrorInvalidPipelineSpec, "template contains zero yaml document")
+	}
+
+	// Unmarshal pipeline spec, which is the first yaml document
 	var spec pipelinespec.PipelineSpec
-	templateJson, err := yaml.YAMLToJSON(template)
+	templateJson, err := yaml.YAMLToJSON(templates[0])
 	if err != nil {
 		return nil, util.NewInvalidInputErrorWithDetails(ErrorInvalidPipelineSpec, fmt.Sprintf("cannot convert v2 pipeline spec to json format: %s", err.Error()))
 	}
@@ -126,7 +139,34 @@ func NewV2SpecTemplate(template []byte) (*V2Spec, error) {
 		return nil, util.NewInvalidInputErrorWithDetails(ErrorInvalidPipelineSpec, "invalid v2 pipeline spec: root component is empty")
 	}
 
-	return &V2Spec{spec: &spec}, nil
+	// Unmarshal platform-specific configurations
+	var platformConfigs map[string]structpb.Struct
+	if len(templates) > 1 {
+		for i := 1; i < len(templates); i++ {
+			var config structpb.Struct
+			templateJson, err := yaml.YAMLToJSON(templates[i])
+			if err != nil {
+				return nil, util.NewInvalidInputErrorWithDetails(ErrorInvalidPipelineSpec, fmt.Sprintf("cannot convert v2 platform specific config to json format: %s", err.Error()))
+			}
+			err = protojson.Unmarshal(templateJson, &config)
+			if err != nil {
+				return nil, util.NewInvalidInputErrorWithDetails(ErrorInvalidPipelineSpec, fmt.Sprintf("invalid v2 platform specific config: %s", err.Error()))
+			}
+			configMap := config.GetFields()
+			if len(configMap) != 1 {
+				return nil, util.NewInvalidInputErrorWithDetails(ErrorInvalidPipelineSpec, "invalid v2 platform specific config. There should be one and only one field.")
+			}
+			for key := range configMap {
+				_, ok := platformConfigs[key]
+				if ok {
+					return nil, util.NewInvalidInputErrorWithDetails(ErrorInvalidPipelineSpec, fmt.Sprintf("invalid v2 platform specific config. There are more than one configs for platform %s.", key))
+				}
+				platformConfigs[key] = *configMap[key].GetStructValue()
+			}
+		}
+	}
+
+	return &V2Spec{spec: &spec, platformConfigs: platformConfigs}, nil
 }
 
 func (t *V2Spec) Bytes() []byte {
@@ -190,7 +230,8 @@ func (t *V2Spec) RunWorkflow(modelRun *model.Run, options RunWorkflowOptions) (u
 		return nil, util.Wrap(err, "Failed to convert to PipelineJob RuntimeConfig")
 	}
 	job.RuntimeConfig = jobRuntimeConfig
-	obj, err := argocompiler.Compile(job, nil)
+	opt := argocompiler.Options{PlatformConfigs: t.platformConfigs}
+	obj, err := argocompiler.Compile(job, &opt)
 	if err != nil {
 		return nil, util.Wrap(err, "Failed to compile job")
 	}

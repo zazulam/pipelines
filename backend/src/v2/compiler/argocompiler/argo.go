@@ -15,6 +15,7 @@
 package argocompiler
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -26,6 +27,7 @@ import (
 	k8score "k8s.io/api/core/v1"
 	k8sres "k8s.io/apimachinery/pkg/api/resource"
 	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"pipelines/api/platforms/argo/go/deploymentspec"
 )
 
 type Options struct {
@@ -36,6 +38,8 @@ type Options struct {
 	// optional
 	PipelineRoot string
 	// TODO(Bobgy): add an option -- dev mode, ImagePullPolicy should only be Always in dev mode.
+	// Platform-specific configurations
+	PlatformConfigs map[string]structpb.Struct
 }
 
 func Compile(jobArg *pipelinespec.PipelineJob, opts *Options) (*wfapi.Workflow, error) {
@@ -73,6 +77,20 @@ func Compile(jobArg *pipelinespec.PipelineJob, opts *Options) (*wfapi.Workflow, 
 			}
 		}
 	}
+	// find platform-specific configuration for argo platform
+	argoConfigs, ok := opts.PlatformConfigs["argo"]
+	var configs deploymentspec.ExecutorConfig
+	if ok {
+		configsBytes, err := argoConfigs.MarshalJSON()
+		if err != nil {
+			return nil, fmt.Errorf("error marshalling argo platform configs: %s", err)
+		}
+		err = json.Unmarshal(configsBytes, &configs)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshalling argo platform configs: %s", err)
+		}
+	}
+
 	// initialization
 	wf := &wfapi.Workflow{
 		TypeMeta: k8smeta.TypeMeta{
@@ -111,6 +129,7 @@ func Compile(jobArg *pipelinespec.PipelineJob, opts *Options) (*wfapi.Workflow, 
 		launcherImage: "gcr.io/ml-pipeline-test/dev/kfp-launcher-v2@sha256:98a25728bfdc5a91a54f93f388bd16fa386008164e665ea797a619096a131c1a",
 		job:           job,
 		spec:          spec,
+		configs:       configs,
 		executors:     deploy.GetExecutors(),
 	}
 	if opts != nil {
@@ -141,6 +160,7 @@ type workflowCompiler struct {
 	job       *pipelinespec.PipelineJob
 	spec      *pipelinespec.PipelineSpec
 	executors map[string]*pipelinespec.PipelineDeploymentConfig_ExecutorSpec
+	configs   deploymentspec.ExecutorConfig
 	// state
 	wf            *wfapi.Workflow
 	templates     map[string]*wfapi.Template
