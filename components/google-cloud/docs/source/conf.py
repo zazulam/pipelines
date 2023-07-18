@@ -32,44 +32,45 @@ gcpc_root_dir = os.path.abspath(
         '..',
         '..',
         'google_cloud_pipeline_components',
-    )
-)
+    ))
 
 # keep as append not insert, otherwise there is an issue with other package discovery
 sys.path.append(gcpc_root_dir)
 
+
 # preserve function docstrings for components by setting component decorators to passthrough decorators
 # also enables autodoc to document the components as functions without using the autodata directive (https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#directive-autodata)
 def first_order_passthrough_decorator(func):
-  func._is_component = True
-  return func
+    func._is_component = True
+    return func
 
 
 def second_order_passthrough_decorator(*args, **kwargs):
 
-  def decorator(func):
-    func._is_component = True
-    return func
+    def decorator(func):
+        func._is_component = True
+        return func
 
-  return decorator
+    return decorator
 
 
 def second_order_passthrough_decorator_for_pipeline(*args, **kwargs):
-  def decorator(func):
-    func._is_pipeline = True
-    return func
 
-  return decorator
+    def decorator(func):
+        func._is_pipeline = True
+        return func
+
+    return decorator
 
 
 def load_from_file(path: str):
-  with open(path) as f:
-    contents = f.read()
-    component_dict = yaml.safe_load(contents)
-  comp = components.load_component_from_text(contents)
-  description = component_dict.get('description', '')
-  comp.__doc__ = description
-  return comp
+    with open(path) as f:
+        contents = f.read()
+        component_dict = yaml.safe_load(contents)
+    comp = components.load_component_from_text(contents)
+    description = component_dict.get('description', '')
+    comp.__doc__ = description
+    return comp
 
 
 utils.gcpc_output_name_converter = second_order_passthrough_decorator
@@ -81,9 +82,9 @@ components.load_component_from_file = load_from_file
 
 class OutputPath(dsl.OutputPath):
 
-  def __repr__(self) -> str:
-    type_string = getattr(self.type, '__name__', '')
-    return f'dsl.OutputPath({type_string})'
+    def __repr__(self) -> str:
+        type_string = getattr(self.type, '__name__', '')
+        return f'dsl.OutputPath({type_string})'
 
 
 dsl.OutputPath = OutputPath
@@ -91,9 +92,10 @@ dsl.OutputPath = OutputPath
 
 class InputClass:
 
-  def __getitem__(self, type_) -> str:
-    type_string = getattr(type_, 'schema_title', getattr(type_, '__name__', ''))
-    return f'dsl.Input[{type_string}]'
+    def __getitem__(self, type_) -> str:
+        type_string = getattr(type_, 'schema_title',
+                              getattr(type_, '__name__', ''))
+        return f'dsl.Input[{type_string}]'
 
 
 Input = InputClass()
@@ -103,9 +105,10 @@ dsl.Input = Input
 
 class OutputClass:
 
-  def __getitem__(self, type_) -> str:
-    type_string = getattr(type_, 'schema_title', getattr(type_, '__name__', ''))
-    return f'dsl.Output[{type_string}]'
+    def __getitem__(self, type_) -> str:
+        type_string = getattr(type_, 'schema_title',
+                              getattr(type_, '__name__', ''))
+        return f'dsl.Output[{type_string}]'
 
 
 Output = OutputClass()
@@ -158,8 +161,10 @@ autodoc_default_options = {
 
 # notfound.extension: https://sphinx-notfound-page.readthedocs.io/en/latest/configuration.html#confval-notfound_context
 notfound_context = {
-    'title': 'Page not found',
-    'body': textwrap.dedent("""
+    'title':
+        'Page not found',
+    'body':
+        textwrap.dedent("""
             <head>
             <title>Page not found</title>
             </head>
@@ -183,11 +188,16 @@ html_theme_options = {
     'icon': {
         'repo': 'fontawesome/brands/github',
     },
-    'repo_url': 'https://github.com/kubeflow/pipelines/tree/master/components/google-cloud',
-    'repo_name': 'pipelines',
-    'repo_type': 'github',
-    'edit_uri': 'https://github.com/kubeflow/pipelines/tree/master/components/google-cloud/docs/source',
-    'globaltoc_collapse': True,
+    'repo_url':
+        'https://github.com/kubeflow/pipelines/tree/master/components/google-cloud',
+    'repo_name':
+        'pipelines',
+    'repo_type':
+        'github',
+    'edit_uri':
+        'https://github.com/kubeflow/pipelines/tree/master/components/google-cloud/docs/source',
+    'globaltoc_collapse':
+        True,
     'features': [
         'navigation.expand',
         # "navigation.tabs",
@@ -207,16 +217,18 @@ html_theme_options = {
         'scheme': 'default',
         'primary': 'googleblue',
     }],
-    'font': {'text': 'Open Sans'},
-    'version_dropdown': True,
-    'version_info': [
-        {
-            'version': f'https://google-cloud-pipeline-components.readthedocs.io/en/google-cloud-pipeline-components-{version}',
-            'title': version,
-            'aliases': [],
-        }
-        for version in reversed(V2_DROPDOWN_VERSIONS)
-    ],
+    'font': {
+        'text': 'Open Sans'
+    },
+    'version_dropdown':
+        False,
+    'version_info': [{
+        'version':
+            f'https://google-cloud-pipeline-components.readthedocs.io/en/google-cloud-pipeline-components-{version}',
+        'title':
+            version,
+        'aliases': [],
+    } for version in reversed(V2_DROPDOWN_VERSIONS)],
     # "toc_title_is_page_title": True,
 }
 # Add any paths that contain templates here, relative to this directory.
@@ -258,19 +270,19 @@ htmlhelp_basename = 'GoogleCloudPipelineComponentsDocs'
 
 
 def component_grouper(app, what, name, obj, section, parent):
-  if getattr(obj, '_is_component', False):
-    return 'Components'
+    if getattr(obj, '_is_component', False):
+        return 'Components'
 
 
 def pipeline_grouper(app, what, name, obj, section, parent):
-  if getattr(obj, '_is_pipeline', False):
-    return 'Pipelines'
+    if getattr(obj, '_is_pipeline', False):
+        return 'Pipelines'
 
 
 def autodoc_skip_member(app, what, name, obj, skip, options):
-  skip = True
-  if name == 'create_custom_training_job_op_from_component':
-    return skip
+    skip = True
+    if name == 'create_custom_training_job_op_from_component':
+        return skip
 
 
 def make_docstring_lines_for_param(
@@ -278,92 +290,87 @@ def make_docstring_lines_for_param(
     type_string: str,
     description: str,
 ) -> List[str]:
-  WHITESPACE = '     '
+    WHITESPACE = '     '
 
-  return [
-      f'{WHITESPACE * 2}``{param_name}: {type_string}``',
-      f'{WHITESPACE * 4}{description}',
-  ]
+    return [
+        f'{WHITESPACE * 2}``{param_name}: {type_string}``',
+        f'{WHITESPACE * 4}{description}',
+    ]
 
 
 def get_return_section(component) -> List[str]:
-  """Modifies docstring so that a return section can be treated as an
+    """Modifies docstring so that a return section can be treated as an
 
   args section, then parses the docstring.
   """
-  docstring = inspect.getdoc(component)
-  type_hints = component.__annotations__
-  if docstring is None:
+    docstring = inspect.getdoc(component)
+    type_hints = component.__annotations__
+    if docstring is None:
+        return []
+
+    # Returns and Return are the only two keywords docstring_parser uses for returns
+    # use newline to avoid replacements that aren't in the return section header
+    return_keywords = ['Returns:\n', 'Returns\n', 'Return:\n', 'Return\n']
+    for keyword in return_keywords:
+        if keyword in docstring:
+            modified_docstring = docstring.replace(keyword.strip(), 'Args:')
+            returns_docstring = docstring_parser.parse(modified_docstring)
+            new_docstring_lines = []
+            for param in returns_docstring.params:
+                type_string = (
+                    repr(
+                        type_hints.get(
+                            param.arg_name,
+                            type_hints.get(
+                                param.arg_name,
+                                'Unknown',
+                            ),
+                        )).lstrip("'").rstrip("'"))
+                new_docstring_lines.extend(
+                    make_docstring_lines_for_param(
+                        param_name=param.arg_name.lstrip(
+                            utils.DOCS_INTEGRATED_OUTPUT_RENAMING_PREFIX),
+                        type_string=type_string,
+                        description=param.description,
+                    ))
+            return new_docstring_lines
     return []
 
-  # Returns and Return are the only two keywords docstring_parser uses for returns
-  # use newline to avoid replacements that aren't in the return section header
-  return_keywords = ['Returns:\n', 'Returns\n', 'Return:\n', 'Return\n']
-  for keyword in return_keywords:
-    if keyword in docstring:
-      modified_docstring = docstring.replace(keyword.strip(), 'Args:')
-      returns_docstring = docstring_parser.parse(modified_docstring)
-      new_docstring_lines = []
-      for param in returns_docstring.params:
-        type_string = (
-            repr(
-                type_hints.get(
-                    param.arg_name,
-                    type_hints.get(
-                        param.arg_name,
-                        'Unknown',
-                    ),
-                )
-            )
-            .lstrip("'")
-            .rstrip("'")
-        )
-        new_docstring_lines.extend(
-            make_docstring_lines_for_param(
-                param_name=param.arg_name.lstrip(
-                    utils.DOCS_INTEGRATED_OUTPUT_RENAMING_PREFIX
-                ),
-                type_string=type_string,
-                description=param.description,
-            )
-        )
-      return new_docstring_lines
-  return []
 
-
-def remove__output_prefix_from_signature(
-    app, what, name, obj, options, signature, return_annotation
-):
-  if signature is not None:
-    signature = re.sub(
-        rf'{utils.DOCS_INTEGRATED_OUTPUT_RENAMING_PREFIX}(\w+):',
-        r'\1:',
-        signature,
-    )
-  return signature, return_annotation
+def remove__output_prefix_from_signature(app, what, name, obj, options,
+                                         signature, return_annotation):
+    if signature is not None:
+        signature = re.sub(
+            rf'{utils.DOCS_INTEGRATED_OUTPUT_RENAMING_PREFIX}(\w+):',
+            r'\1:',
+            signature,
+        )
+    return signature, return_annotation
 
 
 def remove_after_returns_in_place(lines: List[str]) -> bool:
-  for i in range(len(lines)):
-    if lines[i].startswith(':returns:'):
-      del lines[i:]
-      return True
-  return False
+    for i in range(len(lines)):
+        if lines[i].startswith(':returns:'):
+            del lines[i:]
+            return True
+    return False
+
 
 def process_named_docstring_returns(app, what, name, obj, options, lines):
-  if getattr(obj, '_is_component', False):
-    has_returns_section = remove_after_returns_in_place(lines)
-    if has_returns_section:
-      returns_section = get_return_section(obj)
-      lines.extend([':returns:', ''])
-      lines.extend(returns_section)
+    if getattr(obj, '_is_component', False):
+        has_returns_section = remove_after_returns_in_place(lines)
+        if has_returns_section:
+            returns_section = get_return_section(obj)
+            lines.extend([':returns:', ''])
+            lines.extend(returns_section)
+
 
 def setup(app):
-  app.connect('autodoc-process-docstring', process_named_docstring_returns)
-  app.connect(
-      'autodoc-process-signature',
-      remove__output_prefix_from_signature,
-  )
-  app.connect('autodocsumm-grouper', component_grouper)
-  app.connect('autodocsumm-grouper', pipeline_grouper)
-  app.connect('autodoc-skip-member', autodoc_skip_member)
+    app.connect('autodoc-process-docstring', process_named_docstring_returns)
+    app.connect(
+        'autodoc-process-signature',
+        remove__output_prefix_from_signature,
+    )
+    app.connect('autodocsumm-grouper', component_grouper)
+    app.connect('autodocsumm-grouper', pipeline_grouper)
+    app.connect('autodoc-skip-member', autodoc_skip_member)
