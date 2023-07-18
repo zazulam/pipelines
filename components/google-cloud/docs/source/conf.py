@@ -221,14 +221,9 @@ html_theme_options = {
         'text': 'Open Sans'
     },
     'version_dropdown':
-        False,
-    'version_info': [{
-        'version':
-            f'https://google-cloud-pipeline-components.readthedocs.io/en/google-cloud-pipeline-components-{version}',
-        'title':
-            version,
-        'aliases': [],
-    } for version in reversed(V2_DROPDOWN_VERSIONS)],
+        True,
+    'version_json':
+        'https://raw.githubusercontent.com/kubeflow/pipelines/test-gcpc-docs-dropdown/versions.json',
     # "toc_title_is_page_title": True,
 }
 # Add any paths that contain templates here, relative to this directory.
@@ -299,10 +294,10 @@ def make_docstring_lines_for_param(
 
 
 def get_return_section(component) -> List[str]:
-    """Modifies docstring so that a return section can be treated as an
+    """Modifies docstring so that a return section can be treated as an.
 
-  args section, then parses the docstring.
-  """
+    args section, then parses the docstring.
+    """
     docstring = inspect.getdoc(component)
     type_hints = component.__annotations__
     if docstring is None:
