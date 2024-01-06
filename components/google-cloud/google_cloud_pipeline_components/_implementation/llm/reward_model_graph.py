@@ -40,6 +40,7 @@ def pipeline(
     lora_dim: int = 0,
     reward_model_learning_rate_multiplier: float = 1.0,
     reward_model_train_steps: int = 1000,
+    train_time_eval_dataset: Optional[str] = None,
     instruction: Optional[str] = None,
     project: str = _placeholders.PROJECT_ID_PLACEHOLDER,
     location: str = _placeholders.LOCATION_PLACEHOLDER,
@@ -99,6 +100,7 @@ def pipeline(
           input_text=processed_preference_dataset.outputs[
               'processed_dataset_uri'
           ],
+          train_time_eval_dataset=train_time_eval_dataset,
           inputs_field_name=prompt_column,
           comma_separated_candidates_field_names=comma_separated_candidates_field_names.output,
           choice_field_name=choice_column,
@@ -123,6 +125,10 @@ def pipeline(
           'reward_model_reference'
       ]
   ).set_display_name('Resolve Number of Microbatches')
+
+  enable_train_time_eval = function_based.value_exists(
+      value=train_time_eval_dataset
+  ).set_display_name('Resolve Train Time Eval Dataset')
   reward_model = (
       reward_model_trainer.RewardModelTrainer(
           project=project,
@@ -139,6 +145,7 @@ def pipeline(
           large_model_reference=reference_model_metadata.outputs[
               'reward_model_reference'
           ],
+          enable_train_time_eval=enable_train_time_eval.output,
           machine_type=machine_spec.outputs['machine_type'],
           image_uri=reward_model_image_uri.output,
           inputs_sequence_length=prompt_sequence_length,

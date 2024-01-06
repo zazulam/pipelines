@@ -3,6 +3,7 @@
 * Disable caching when resolving model display names for RLHF-tuned models so a unique name is generated on each `preview.llm.rlhf_pipeline` run.
 * Upload the tuned adapter to Model Registry instead of model checkpoint from `preview.llm.rlhf_pipeline`.
 * Add Vertex model get component (`v1.model.ModelGetOp`).
+* Add train-time alignment validation for reward model.
 
 ## Release 2.8.0
 * Release AutoSxS pipeline to preview.

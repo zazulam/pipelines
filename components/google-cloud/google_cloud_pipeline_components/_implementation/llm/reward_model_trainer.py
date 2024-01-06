@@ -35,6 +35,7 @@ def RewardModelTrainer(  # pylint: disable=invalid-name
     output_model_path: kfp.dsl.OutputPath(str),  # pytype: disable=invalid-annotation
     tensorboard_metrics: kfp.dsl.Output[kfp.dsl.Artifact],  # pytype: disable=unsupported-operands
     gcp_resources: kfp.dsl.OutputPath(str),  # pytype: disable=invalid-annotation
+    enable_train_time_eval: bool = False,
     train_split: str = 'train',
     batch_size: int = 64,
     learning_rate_multiplier: float = 1.0,
@@ -94,6 +95,7 @@ def RewardModelTrainer(  # pylint: disable=invalid-name
               f'--inputs_sequence_length={inputs_sequence_length}',
               f'--targets_sequence_length={targets_sequence_length}',
               f'--train_split={train_split}',
+              f'--enable_train_time_eval={enable_train_time_eval}',
               f'--batch_size={batch_size}',
               f'--learning_rate_multiplier={learning_rate_multiplier}',
               (

@@ -32,6 +32,7 @@ def PrivateTextComparisonImporter(  # pylint: disable=invalid-name
     output_dataset_path: kfp.dsl.OutputPath(str),  # pytype: disable=invalid-annotation
     gcp_resources: kfp.dsl.OutputPath(str),  # pytype: disable=invalid-annotation
     machine_type: str = 'e2-highmem-8',
+    train_time_eval_dataset: str = '',
     instruction: str = '',
 ) -> kfp.dsl.ContainerSpec:  # pylint: disable=g-doc-args
   """Import a text dataset.
@@ -73,6 +74,7 @@ def PrivateTextComparisonImporter(  # pylint: disable=invalid-name
               f'--choice_field_name={choice_field_name}',
               f'--split={split}',
               f'--output_cache_dir={output_dataset_path}',
+              f'--train_time_eval_dataset={train_time_eval_dataset}',
               f'--instruction={instruction}',
               f'--large_model_reference={large_model_reference}',
               (
