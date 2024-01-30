@@ -44,6 +44,7 @@ def pipeline(
     project: str = _placeholders.PROJECT_ID_PLACEHOLDER,
     location: str = _placeholders.LOCATION_PLACEHOLDER,
     tensorboard_resource_id: Optional[str] = None,
+    encryption_spec_key_name: str = '',
 ) -> PipelineOutput:
   # fmt: off
   """Trains a reward model.
@@ -61,6 +62,7 @@ def pipeline(
     project: Project used to run custom jobs. If not specified the project used to run the pipeline will be used.
     location: Location used to run custom jobs. If not specified the location used to run the pipeline will be used.
     tensorboard_resource_id: Optional tensorboard resource id in format `projects/{project_number}/locations/{location}/tensorboards/{tensorboard_id}`. If provided, tensorboard metrics will be uploaded to this location.
+    encryption_spec_key_name: Customer-managed encryption key. If this is set, then all resources created by the CustomJob will be encrypted with the provided encryption key. Note that this is not supported for TPU at the moment.
 
   Returns:
     reward_model_output_path: Path to the trained reward model.
@@ -108,6 +110,7 @@ def pipeline(
           ],
           image_uri=preference_dataset_image_uri.output,
           instruction=instruction,
+          encryption_spec_key_name=encryption_spec_key_name,
       )
       .set_display_name('Import Preference Dataset')
       .set_caching_options(False)
@@ -147,6 +150,7 @@ def pipeline(
           learning_rate_multiplier=reward_model_learning_rate_multiplier,
           lora_dim=lora_dim,
           num_microbatches=num_microbatches.output,
+          encryption_spec_key_name=encryption_spec_key_name,
       )
       .set_display_name('Reward Model Trainer')
       .set_caching_options(False)
