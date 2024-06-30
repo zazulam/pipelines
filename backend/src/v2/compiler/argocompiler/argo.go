@@ -38,6 +38,12 @@ type Options struct {
 	// TODO(Bobgy): add an option -- dev mode, ImagePullPolicy should only be Always in dev mode.
 }
 
+type ComponentDetails struct {
+	ComponentSpec  string
+	ComponentImpl  string
+	KubernetesSpec string
+}
+
 func Compile(jobArg *pipelinespec.PipelineJob, kubernetesSpecArg *pipelinespec.SinglePlatformSpec, opts *Options) (*wfapi.Workflow, error) {
 	// clone jobArg, because we don't want to change it
 	jobMsg := proto.Clone(jobArg)
@@ -116,11 +122,12 @@ func Compile(jobArg *pipelinespec.PipelineJob, kubernetesSpecArg *pipelinespec.S
 		wf:        wf,
 		templates: make(map[string]*wfapi.Template),
 		// TODO(chensun): release process and update the images.
-		launcherImage: GetLauncherImage(),
-		driverImage:   GetDriverImage(),
-		job:           job,
-		spec:          spec,
-		executors:     deploy.GetExecutors(),
+		launcherImage:      GetLauncherImage(),
+		driverImage:        GetDriverImage(),
+		temp_component_map: make(map[string]*ComponentDetails),
+		job:                job,
+		spec:               spec,
+		executors:          deploy.GetExecutors(),
 	}
 	if opts != nil {
 		if opts.DriverImage != "" {
@@ -151,10 +158,11 @@ type workflowCompiler struct {
 	spec      *pipelinespec.PipelineSpec
 	executors map[string]*pipelinespec.PipelineDeploymentConfig_ExecutorSpec
 	// state
-	wf            *wfapi.Workflow
-	templates     map[string]*wfapi.Template
-	driverImage   string
-	launcherImage string
+	temp_component_map map[string]*ComponentDetails
+	wf                 *wfapi.Workflow
+	templates          map[string]*wfapi.Template
+	driverImage        string
+	launcherImage      string
 }
 
 func (c *workflowCompiler) Resolver(name string, component *pipelinespec.ComponentSpec, resolver *pipelinespec.PipelineDeploymentConfig_ResolverSpec) error {
@@ -189,29 +197,89 @@ const (
 )
 
 func (c *workflowCompiler) saveComponentSpec(name string, spec *pipelinespec.ComponentSpec) error {
-	return c.saveProtoToAnnotation(annotationComponents+name, spec)
+	// Check if the name already exists in the temp_component_map.
+	// If it does, continue to use the existing component spec.
+	// If it does not, save the component spec to the temp_component_map.
+	if c.temp_component_map == nil {
+		c.temp_component_map = make(map[string]*ComponentDetails)
+	}
+	if _, ok := c.temp_component_map[name]; !ok {
+		json, err := stablyMarshalJSON(spec)
+		if err != nil {
+			return fmt.Errorf("saving component spec of %q: %w", name, err)
+		}
+		c.temp_component_map[name] = &ComponentDetails{
+			ComponentSpec: json,
+		}
+	}
+	return nil
+	// return c.saveProtoToAnnotation(annotationComponents+name, spec)
 }
 
 // useComponentSpec returns a placeholder we can refer to the component spec
 // in argo workflow fields.
 func (c *workflowCompiler) useComponentSpec(name string) (string, error) {
-	return c.annotationPlaceholder(annotationComponents + name)
+	if c.temp_component_map == nil {
+		return "", fmt.Errorf("component spec not found")
+	}
+	if component, ok := c.temp_component_map[name]; ok {
+		return component.ComponentSpec, nil
+	}
+	return "", fmt.Errorf("component spec not found")
 }
 
 func (c *workflowCompiler) saveComponentImpl(name string, msg proto.Message) error {
-	return c.saveProtoToAnnotation(annotationContainers+name, msg)
+	if c.temp_component_map == nil {
+		return fmt.Errorf("component details not found")
+	}
+	if component, ok := c.temp_component_map[name]; ok {
+		json, err := stablyMarshalJSON(msg)
+		if err != nil {
+			return fmt.Errorf("saving component impl of %q: %w", name, err)
+		}
+		component.ComponentImpl = json
+		return nil
+	}
+	return fmt.Errorf("component Impl not found")
+	// return c.saveProtoToAnnotation(annotationContainers+name, msg)
 }
 
 func (c *workflowCompiler) useComponentImpl(name string) (string, error) {
-	return c.annotationPlaceholder(annotationContainers + name)
+	if c.temp_component_map == nil {
+		return "", fmt.Errorf("component Impl not found")
+	}
+	if component, ok := c.temp_component_map[name]; ok {
+		return component.ComponentImpl, nil
+	}
+	return "", fmt.Errorf("component spec not found")
+	// return c.annotationPlaceholder(annotationContainers + name)
 }
 
 func (c *workflowCompiler) saveKubernetesSpec(name string, spec *structpb.Struct) error {
-	return c.saveProtoToAnnotation(annotationKubernetesSpec+name, spec)
+	if c.temp_component_map == nil {
+		return fmt.Errorf("component details not found")
+	}
+	if component, ok := c.temp_component_map[name]; ok {
+		json, err := stablyMarshalJSON(spec)
+		if err != nil {
+			return fmt.Errorf("saving component k8s spec of %q: %w", name, err)
+		}
+		component.KubernetesSpec = json
+		return nil
+	}
+	return fmt.Errorf("component k8s spec not found")
+	// return c.saveProtoToAnnotation(annotationKubernetesSpec+name, spec)
 }
 
 func (c *workflowCompiler) useKubernetesImpl(name string) (string, error) {
-	return c.annotationPlaceholder(annotationKubernetesSpec + name)
+	if c.temp_component_map == nil {
+		return "", fmt.Errorf("component k8s spec not found")
+	}
+	if component, ok := c.temp_component_map[name]; ok {
+		return component.KubernetesSpec, nil
+	}
+	return "", fmt.Errorf("component k8s spec not found")
+	// return c.annotationPlaceholder(annotationKubernetesSpec + name)
 }
 
 // TODO(Bobgy): sanitize component name
@@ -238,11 +306,12 @@ func (c *workflowCompiler) annotationPlaceholder(name string) (string, error) {
 	if c == nil {
 		return "", fmt.Errorf("compiler is nil")
 	}
-	if _, exists := c.wf.Annotations[name]; !exists {
-		return "", fmt.Errorf("using component spec: failed to find annotation %q", name)
+	if _, exists := c.temp_component_map[name]; !exists {
+		return "", fmt.Errorf("using component spec: failed to find %q", name)
 	}
 	// Reference: https://argoproj.github.io/argo-workflows/variables/
 	return fmt.Sprintf("{{workflow.annotations.%s}}", name), nil
+
 }
 
 const (

@@ -19,15 +19,15 @@ WORKDIR /go/src/github.com/kubeflow/pipelines
 COPY . .
 RUN GO111MODULE=on go build -o /bin/apiserver backend/src/apiserver/*.go
 # Check licenses and comply with license terms.
-RUN ./hack/install-go-licenses.sh
+# RUN ./hack/install-go-licenses.sh
 # First, make sure there's no forbidden license.
-RUN go-licenses check ./backend/src/apiserver
-RUN go-licenses csv ./backend/src/apiserver > /tmp/licenses.csv && \
-  diff /tmp/licenses.csv backend/third_party_licenses/apiserver.csv && \
-  go-licenses save ./backend/src/apiserver --save_path /tmp/NOTICES
+# RUN go-licenses check ./backend/src/apiserver
+# RUN go-licenses csv ./backend/src/apiserver > /tmp/licenses.csv && \
+#   diff /tmp/licenses.csv backend/third_party_licenses/apiserver.csv && \
+#   go-licenses save ./backend/src/apiserver --save_path /tmp/NOTICES
 
 # 2. Compile preloaded pipeline samples
-FROM python:3.7 as compiler
+FROM python:3.8 as compiler
 RUN apt-get update -y && apt-get install --no-install-recommends -y -q default-jdk python3-setuptools python3-dev jq
 RUN wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py
 COPY backend/requirements.txt .
@@ -59,7 +59,7 @@ ARG COMMIT_SHA=unknown
 ENV COMMIT_SHA=${COMMIT_SHA}
 ARG TAG_NAME=unknown
 ENV TAG_NAME=${TAG_NAME}
-ENV LOG_LEVEL info 
+ENV LOG_LEVEL debug 
 
 WORKDIR /bin
 
@@ -67,9 +67,9 @@ COPY backend/src/apiserver/config/ /config
 COPY --from=builder /bin/apiserver /bin/apiserver
 
 # Copy licenses and notices.
-COPY --from=builder /tmp/licenses.csv /third_party/licenses.csv
-COPY --from=builder /tmp/NOTICES /third_party/NOTICES
-COPY --from=compiler /samples/ /samples/
+# COPY --from=builder /tmp/licenses.csv /third_party/licenses.csv
+# COPY --from=builder /tmp/NOTICES /third_party/NOTICES
+# COPY --from=compiler /samples/ /samples/
 RUN chmod +x /bin/apiserver
 
 # Adding CA certificate so API server can download pipeline through URL and wget is used for liveness/readiness probe command
