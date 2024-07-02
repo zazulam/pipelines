@@ -16,6 +16,7 @@ package argocompiler
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	wfapi "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -108,6 +109,9 @@ func Compile(jobArg *pipelinespec.PipelineJob, kubernetesSpecArg *pipelinespec.S
 					"pipelines.kubeflow.org/v2_component": "true",
 				},
 			},
+			Arguments: wfapi.Arguments{
+				Parameters: []wfapi.Parameter{},
+			},
 			ServiceAccountName: "pipeline-runner",
 			Entrypoint:         tmplEntrypoint,
 		},
@@ -183,35 +187,71 @@ func (c *workflowCompiler) templateName(componentName string) string {
 // WIP: store component spec, task spec and executor spec in annotations
 
 const (
-	annotationComponents     = "pipelines.kubeflow.org/components-"
-	annotationContainers     = "pipelines.kubeflow.org/implementations-"
-	annotationKubernetesSpec = "pipelines.kubeflow.org/kubernetes-"
+	annotationComponents     = "components-"
+	annotationContainers     = "implementations-"
+	annotationKubernetesSpec = "kubernetes-"
 )
 
 func (c *workflowCompiler) saveComponentSpec(name string, spec *pipelinespec.ComponentSpec) error {
-	return c.saveProtoToAnnotation(annotationComponents+name, spec)
+	return c.saveProtoToArguments(annotationComponents+name, spec)
+	// return c.saveProtoToAnnotation(annotationComponents+name, spec)
 }
 
 // useComponentSpec returns a placeholder we can refer to the component spec
 // in argo workflow fields.
 func (c *workflowCompiler) useComponentSpec(name string) (string, error) {
-	return c.annotationPlaceholder(annotationComponents + name)
+	return c.argumentsPlaceholder(annotationComponents + name)
+	// return c.annotationPlaceholder(annotationComponents + name)
 }
 
 func (c *workflowCompiler) saveComponentImpl(name string, msg proto.Message) error {
-	return c.saveProtoToAnnotation(annotationContainers+name, msg)
+	return c.saveProtoToArguments(annotationContainers+name, msg)
+	// return c.saveProtoToAnnotation(annotationContainers+name, msg)
 }
 
 func (c *workflowCompiler) useComponentImpl(name string) (string, error) {
-	return c.annotationPlaceholder(annotationContainers + name)
+	return c.argumentsPlaceholder(annotationContainers + name)
+	// return c.annotationPlaceholder(annotationContainers + name)
 }
 
 func (c *workflowCompiler) saveKubernetesSpec(name string, spec *structpb.Struct) error {
-	return c.saveProtoToAnnotation(annotationKubernetesSpec+name, spec)
+	return c.saveProtoToArguments(annotationKubernetesSpec+name, spec)
+	// return c.saveProtoToAnnotation(annotationKubernetesSpec+name, spec)
 }
 
 func (c *workflowCompiler) useKubernetesImpl(name string) (string, error) {
-	return c.annotationPlaceholder(annotationKubernetesSpec + name)
+	return c.argumentsPlaceholder(annotationKubernetesSpec + name)
+	// return c.annotationPlaceholder(annotationKubernetesSpec + name)
+}
+
+func (c *workflowCompiler) saveProtoToArguments(name string, msg proto.Message) error {
+	l := strings.Split(name, "-")
+	var param_name string
+
+	if _, err := strconv.Atoi(l[len(l)-1]); err == nil {
+		param_name = strings.Join(l[:len(l)-1], "-")
+	} else {
+		param_name = name
+	}
+
+	if c == nil {
+		return fmt.Errorf("compiler is nil")
+	}
+	if c.wf.Spec.Arguments.Parameters == nil {
+		c.wf.Spec.Arguments = wfapi.Arguments{Parameters: []wfapi.Parameter{}}
+	}
+	if c.wf.Spec.Arguments.GetParameterByName(param_name) != nil {
+		return nil
+	}
+	json, err := stablyMarshalJSON(msg)
+	if err != nil {
+		return fmt.Errorf("saving component spec of %q to arguments: %w", name, err)
+	}
+	c.wf.Spec.Arguments.Parameters = append(c.wf.Spec.Arguments.Parameters, wfapi.Parameter{
+		Name:  param_name,
+		Value: wfapi.AnyStringPtr(json),
+	})
+	return nil
 }
 
 // TODO(Bobgy): sanitize component name
@@ -232,6 +272,26 @@ func (c *workflowCompiler) saveProtoToAnnotation(name string, msg proto.Message)
 	// TODO(Bobgy): verify name adheres to Kubernetes annotation restrictions: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/#syntax-and-character-set
 	c.wf.Annotations[name] = json
 	return nil
+}
+
+func (c *workflowCompiler) argumentsPlaceholder(name string) (string, error) {
+	l := strings.Split(name, "-")
+	var param_name string
+
+	if _, err := strconv.Atoi(l[len(l)-1]); err == nil {
+		param_name = strings.Join(l[:len(l)-1], "-")
+	} else {
+		param_name = name
+	}
+
+	if c == nil {
+		return "", fmt.Errorf("compiler is nil")
+	}
+	if c.wf.Spec.Arguments.GetParameterByName(param_name) == nil {
+		return "", fmt.Errorf("using component spec: failed to find workflow parameter %q", name)
+	}
+
+	return fmt.Sprintf("{{workflow.parameters.%s}}", param_name), nil
 }
 
 func (c *workflowCompiler) annotationPlaceholder(name string) (string, error) {
