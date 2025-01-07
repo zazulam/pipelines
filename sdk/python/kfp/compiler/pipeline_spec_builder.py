@@ -192,33 +192,19 @@ def check_task_input_types(input_value, input_name, pipeline_task_spec, task,
                 input_name].component_input_parameter = (
                     component_input_parameter)
 
-    elif isinstance(input_value, list):
-        for item in input_value:
-            if isinstance(item, (pipeline_channel.PipelineArtifactChannel,
-                                 pipeline_channel.PipelineParameterChannel)):
-                check_task_input_types(item, input_name, pipeline_task_spec,
-                                       task, parent_component_inputs,
-                                       tasks_in_current_dag)
-            elif isinstance(item, (str, int, float, bool)):
-                pipeline_task_spec.inputs.parameters[
-                    input_name].runtime_value.constant.CopyFrom(
-                        to_protobuf_value(input_value))
 
     elif isinstance(input_value, dict):
         for key, value in input_value.items():
             if isinstance(value, (pipeline_channel.PipelineArtifactChannel,
                                   pipeline_channel.PipelineParameterChannel)):
-                check_task_input_types(value, input_name, pipeline_task_spec,
-                                       task, parent_component_inputs,
-                                       tasks_in_current_dag)
-
+                pipeline_task_spec.inputs.parameters[input_name].task_output_parameters.map[key].producer_task = (
+                    utils.sanitize_task_name(value.task_name))
+                pipeline_task_spec.inputs.parameters[input_name].task_output_parameters.map[key].output_parameter_key = (
+                    value.name) 
             elif isinstance(value, (str, int, float, bool)):
                 pipeline_task_spec.inputs.parameters[
                     input_name].runtime_value.constant.CopyFrom(
                         to_protobuf_value(input_value))
-            # check_task_input_types(value, input_name, pipeline_task_spec, task,
-            #                        parent_component_inputs,
-            #                        tasks_in_current_dag)
 
     elif isinstance(input_value, (str, int, float, bool)):
         pipeline_channels = (
