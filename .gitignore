@@ -12,6 +12,7 @@ bower_components/
 
 # Build output
 dist
+__debug_bin*
 
 # Web server
 frontend/server/dist
@@ -55,10 +56,6 @@ bazel-*
 
 # VSCode
 .vscode
-
-# test yaml
-sdk/python/tests/compiler/pipeline.yaml
-sdk/python/tests/compiler/testdata/testpackage/pipeline.yaml
 
 # Test temporary files
 _artifacts
