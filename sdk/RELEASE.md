@@ -1,14 +1,65 @@
 # Current Version (in development)
 
 ## Features
-* Support dynamic machine type parameters in pipeline task setters. [\#11097](https://github.com/kubeflow/pipelines/pull/11097)
-* Add a new `use_venv` field to the component decorator, enabling the component to run inside a virtual environment. [\#11326](https://github.com/kubeflow/pipelines/pull/11326)
 
 ## Breaking changes
 
 ## Deprecations
 
 ## Bug fixes and other changes
+
+## Documentation updates
+
+# 2.11.0
+
+## Features
+* Expose `--existing-token` flag in `kfp` CLI to allow users to provide an existing token for authentication. [\#11400](https://github.com/kubeflow/pipelines/pull/11400)
+* Add the ability to parameterize container images for tasks within pipelines [\#11404](https://github.com/kubeflow/pipelines/pull/11404)
+
+## Breaking changes
+
+## Deprecations
+
+## Bug fixes and other changes
+* Add error handling for image build/push failures in KFP SDK. [\#11164](https://github.com/kubeflow/pipelines/pull/11356)
+* Backport fixes in kubeflow/pipelines#11075. [\#11392])(https://github.com/kubeflow/pipelines/pull/11392)
+* Depends on `kfp-pipeline-spec==0.6.0`. [\#11447](https://github.com/kubeflow/pipelines/pull/11447)
+
+## Documentation updates
+
+# 2.10.1
+
+## Features
+
+## Breaking changes
+
+## Deprecations
+* Remove `kfp.deprecated` module [\#11366](https://github.com/kubeflow/pipelines/pull/11366)
+
+## Bug fixes and other changes
+* Support Python 3.13. [\#11372](https://github.com/kubeflow/pipelines/pull/11372)
+* Fix accelerator type setting [\#11373](https://github.com/kubeflow/pipelines/pull/11373)
+* Depends on `kfp-pipeline-spec==0.5.0`.
+
+## Documentation updates
+
+# 2.10.0
+
+## Features
+* Support dynamic machine type parameters in pipeline task setters. [\#11097](https://github.com/kubeflow/pipelines/pull/11097)
+* Add a new `use_venv` field to the component decorator, enabling the component to run inside a virtual environment. [\#11326](https://github.com/kubeflow/pipelines/pull/11326)
+* Add PipelineConfig to DSL to re-implement pipeline-level config [\#11112](https://github.com/kubeflow/pipelines/pull/11112)
+* Allow disabling default caching via a CLI flag and env var [\#11222](https://github.com/kubeflow/pipelines/pull/11222)
+
+## Breaking changes
+* Deprecate the metrics artifact auto-populating feature. [\#11362](https://github.com/kubeflow/pipelines/pull/11362)
+
+## Deprecations
+* Set Python 3.9 as the Minimum Supported Version [\#11159](https://github.com/kubeflow/pipelines/pull/11159)
+
+## Bug fixes and other changes
+* Fix invalid escape sequences [\#11147](https://github.com/kubeflow/pipelines/pull/11147)
+* Fix nested pipeline returns. [\#11196](https://github.com/kubeflow/pipelines/pull/11196)
 
 ## Documentation updates
 

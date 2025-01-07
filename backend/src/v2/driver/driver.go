@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package driver
 
 import (
@@ -20,6 +21,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/kubeflow/pipelines/backend/src/common/util"
 	"github.com/kubeflow/pipelines/backend/src/v2/objectstore"
 
 	"github.com/golang/glog"
@@ -40,7 +42,6 @@ import (
 	k8sres "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 var dummyImages = map[string]string{
@@ -135,7 +136,7 @@ func RootDAG(ctx context.Context, opts Options, mlmd *metadata.Client) (executio
 	// TODO(v2): in pipeline spec, rename GCS output directory to pipeline root.
 	pipelineRoot := opts.RuntimeConfig.GetGcsOutputDirectory()
 
-	restConfig, err := rest.InClusterConfig()
+	restConfig, err := util.GetKubernetesConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize kubernetes client: %w", err)
 	}
@@ -324,7 +325,7 @@ func Container(ctx context.Context, opts Options, mlmd *metadata.Client, cacheCl
 	cached := false
 	execution.Cached = &cached
 	if opts.Task.GetCachingOptions().GetEnableCache() && ecfg.CachedMLMDExecutionID != "" {
-		executorOutput, outputArtifacts, err := reuseCachedOutputs(ctx, execution.ExecutorInput, opts.Component.GetOutputDefinitions(), mlmd, ecfg.CachedMLMDExecutionID)
+		executorOutput, outputArtifacts, err := reuseCachedOutputs(ctx, execution.ExecutorInput, mlmd, ecfg.CachedMLMDExecutionID)
 		if err != nil {
 			return execution, err
 		}
@@ -448,19 +449,28 @@ func initPodSpecPatch(
 	accelerator := container.GetResources().GetAccelerator()
 	if accelerator != nil {
 		if accelerator.GetType() != "" && accelerator.GetCount() > 0 {
+			acceleratorType, err := resolvePodSpecInputRuntimeParameter(accelerator.GetType(), executorInput)
+			if err != nil {
+				return nil, fmt.Errorf("failed to init podSpecPatch: %w", err)
+			}
 			q, err := k8sres.ParseQuantity(fmt.Sprintf("%v", accelerator.GetCount()))
 			if err != nil {
 				return nil, fmt.Errorf("failed to init podSpecPatch: %w", err)
 			}
-			res.Limits[k8score.ResourceName(accelerator.GetType())] = q
+			res.Limits[k8score.ResourceName(acceleratorType)] = q
 		}
+	}
+
+	containerImage, err := resolvePodSpecInputRuntimeParameter(container.Image, executorInput)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init podSpecPatch: %w", err)
 	}
 	podSpec := &k8score.PodSpec{
 		Containers: []k8score.Container{{
 			Name:      "main", // argo task user container is always called "main"
 			Command:   launcherCmd,
 			Args:      userCmdArgs,
-			Image:     container.Image,
+			Image:     containerImage,
 			Resources: res,
 			Env:       userEnvVar,
 		}},
@@ -649,7 +659,7 @@ func extendPodSpecPatch(
 						},
 						Spec: k8score.PersistentVolumeClaimSpec{
 							AccessModes: accessModes,
-							Resources: k8score.ResourceRequirements{
+							Resources: k8score.VolumeResourceRequirements{
 								Requests: k8score.ResourceList{
 									k8score.ResourceStorage: k8sres.MustParse(ephemeralVolumeSpec.GetSize()),
 								},
@@ -844,7 +854,7 @@ func getItems(value *structpb.Value) (items []*structpb.Value, err error) {
 	}
 }
 
-func reuseCachedOutputs(ctx context.Context, executorInput *pipelinespec.ExecutorInput, outputDefinitions *pipelinespec.ComponentOutputsSpec, mlmd *metadata.Client, cachedMLMDExecutionID string) (*pipelinespec.ExecutorOutput, []*metadata.OutputArtifact, error) {
+func reuseCachedOutputs(ctx context.Context, executorInput *pipelinespec.ExecutorInput, mlmd *metadata.Client, cachedMLMDExecutionID string) (*pipelinespec.ExecutorOutput, []*metadata.OutputArtifact, error) {
 	cachedMLMDExecutionIDInt64, err := strconv.ParseInt(cachedMLMDExecutionID, 10, 64)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failure while transfering cachedMLMDExecutionID %s from string to int64: %w", cachedMLMDExecutionID, err)
@@ -1782,7 +1792,7 @@ func createPVC(
 	cached := false
 	execution.Cached = &cached
 	if opts.Task.GetCachingOptions().GetEnableCache() && ecfg.CachedMLMDExecutionID != "" {
-		executorOutput, outputArtifacts, err := reuseCachedOutputs(ctx, execution.ExecutorInput, opts.Component.GetOutputDefinitions(), mlmd, ecfg.CachedMLMDExecutionID)
+		executorOutput, outputArtifacts, err := reuseCachedOutputs(ctx, execution.ExecutorInput, mlmd, ecfg.CachedMLMDExecutionID)
 		if err != nil {
 			return "", createdExecution, pb.Execution_FAILED, err
 		}
@@ -1804,7 +1814,7 @@ func createPVC(
 		},
 		Spec: k8score.PersistentVolumeClaimSpec{
 			AccessModes: accessModes,
-			Resources: k8score.ResourceRequirements{
+			Resources: k8score.VolumeResourceRequirements{
 				Requests: k8score.ResourceList{
 					k8score.ResourceStorage: k8sres.MustParse(volumeSizeInput.GetStringValue()),
 				},
@@ -1902,7 +1912,7 @@ func deletePVC(
 	cached := false
 	execution.Cached = &cached
 	if opts.Task.GetCachingOptions().GetEnableCache() && ecfg.CachedMLMDExecutionID != "" {
-		executorOutput, outputArtifacts, err := reuseCachedOutputs(ctx, execution.ExecutorInput, opts.Component.GetOutputDefinitions(), mlmd, ecfg.CachedMLMDExecutionID)
+		executorOutput, outputArtifacts, err := reuseCachedOutputs(ctx, execution.ExecutorInput, mlmd, ecfg.CachedMLMDExecutionID)
 		if err != nil {
 			return createdExecution, pb.Execution_FAILED, err
 		}
@@ -1947,7 +1957,7 @@ func deletePVC(
 
 func createK8sClient() (*kubernetes.Clientset, error) {
 	// Initialize Kubernetes client set
-	restConfig, err := rest.InClusterConfig()
+	restConfig, err := util.GetKubernetesConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize kubernetes client: %w", err)
 	}
@@ -2053,7 +2063,7 @@ func createCache(
 ) error {
 	id := execution.GetID()
 	if id == 0 {
-		fmt.Errorf("failed to get id from createdExecution")
+		return fmt.Errorf("failed to get id from createdExecution")
 	}
 	task := &api.Task{
 		//TODO how to differentiate between shared pipeline and namespaced pipeline
