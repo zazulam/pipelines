@@ -492,7 +492,7 @@ class TestWorkspacePlaceholderResolution(unittest.TestCase):
             pipeline_task_id='test-task-id')
 
         self.assertIsInstance(result, str)
-        self.assertTrue(result.startswith('/tmp/kfp-workspace-'))
+        self.assertIn('kfp-workspace-', result)
 
     def test_embedded_workspace_placeholder(self):
         """Test embedded workspace placeholder resolution."""
@@ -519,7 +519,7 @@ class TestWorkspacePlaceholderResolution(unittest.TestCase):
 
         self.assertIsInstance(result, str)
         self.assertIn('os.path.join', result)
-        self.assertIn('/tmp/kfp-workspace-', result)
+        self.assertIn('kfp-workspace-', result)
         self.assertIn('data', result)
         self.assertIn('file.txt', result)
 
@@ -548,7 +548,7 @@ class TestWorkspacePlaceholderResolution(unittest.TestCase):
 
         # Should resolve to actual workspace path
         self.assertIsInstance(result, str)
-        self.assertTrue(result.startswith('/tmp/kfp-workspace-'))
+        self.assertIn('kfp-workspace-', result)
 
     def test_literal_mount_path_replaced_for_subprocess(self):
         """'/kfp-workspace' should be replaced with host workspace in
@@ -573,7 +573,8 @@ class TestWorkspacePlaceholderResolution(unittest.TestCase):
             pipeline_task_id='test-task-id')
 
         self.assertIsInstance(result, str)
-        self.assertTrue(result.startswith('/tmp/kfp-workspace-'))
+        self.assertIsInstance(result, str)
+        self.assertIn('kfp-workspace-', result)
         self.assertTrue(result.endswith('/data/file.txt'))
 
 

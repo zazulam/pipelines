@@ -85,7 +85,9 @@ class LocalRunnerEnvironmentTestCase(parameterized.TestCase):
     def setUpClass(cls):
         # ENTER: use local KFP package path for subprocess runner
         cls.original_component, dsl.component = dsl.component, functools.partial(
-            dsl.component, kfp_package_path=_LOCAL_KFP_PACKAGE_PATH)
+            dsl.component, 
+            kfp_package_path=_LOCAL_KFP_PACKAGE_PATH,
+            install_kfp_package=False)
 
     @classmethod
     def tearDownClass(cls):

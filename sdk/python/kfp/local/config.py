@@ -41,7 +41,7 @@ class SubprocessRunner:
     """Runner that indicates that local tasks should be run in a subprocess.
 
     Args:
-        use_venv: Whether to run the subprocess in a virtual environment. If True, dependencies will be installed in the virtual environment. If False, dependencies will be installed in the current environment. Using a virtual environment is recommended.
+        use_venv: Whether to run the subprocess in a virtual environment. If True, a fresh virtual environment will be created and KFP will be installed in it. If False, the subprocess will use the current environment. Using a virtual environment is recommended.
     """
     use_venv: bool = True
 

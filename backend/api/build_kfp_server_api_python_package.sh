@@ -45,7 +45,7 @@ fi
 pushd "$(dirname "$0")"
 
 CURRENT_DIR="$(pwd)"
-DIR="$CURRENT_DIR/$API_VERSION/python_http_client"
+DIR="$REPO_ROOT/sdk/python/kfp/server_api"
 swagger_file="$CURRENT_DIR/$API_VERSION/swagger/kfp_api_single_file.swagger.json"
 
 echo "Removing old content in DIR first."
@@ -58,22 +58,6 @@ java -jar "$codegen_file" generate -g python -t "$CURRENT_DIR/$API_VERSION/pytho
     "packageUrl": "https://github.com/kubeflow/pipelines"
 }')
 
-echo "Removing unnecessary GitLab and TravisCI generated files"
-rm $CURRENT_DIR/$API_VERSION/python_http_client/.gitlab-ci.yml
-rm $CURRENT_DIR/$API_VERSION/python_http_client/.travis.yml
-
-echo "Copying LICENSE to $DIR"
-cp "$CURRENT_DIR/../../LICENSE" "$DIR"
-
-echo "Building the python package in $DIR."
-pushd "$DIR"
-python3 setup.py --quiet sdist
-popd
-
-echo "Run the following commands to update the package on PyPI"
-echo "python3 -m pip install twine"
-echo "python3 -m twine upload --username kubeflow-pipelines $DIR/dist/*"
-
-echo "Please also push local changes to github.com/kubeflow/pipelines"
+echo "Code generation complete. Please verify the changes in $DIR."
 
 popd

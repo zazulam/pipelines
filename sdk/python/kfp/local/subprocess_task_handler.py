@@ -157,6 +157,25 @@ def environment(use_venv: bool) -> str:
             # Create the virtual environment inside the temporary directory
             venv.create(tempdir, with_pip=True)
 
-            yield os.path.join(tempdir, 'bin', 'python')
+            python_executable = os.path.join(tempdir, 'bin', 'python')
+            
+            # Install build dependencies required for editable install
+            subprocess.run(
+                [python_executable, '-m', 'pip', 'install', '--quiet', 'setuptools', 'wheel'],
+                check=True,
+                capture_output=True
+            )
+            
+            # Install kfp in editable mode without build isolation for speed
+            # This avoids building a wheel and uses the source directly
+            import kfp
+            kfp_source_dir = os.path.dirname(os.path.dirname(kfp.__file__))
+            subprocess.run(
+                [python_executable, '-m', 'pip', 'install', '--quiet', '-e', kfp_source_dir, '--no-build-isolation'],
+                check=True,
+                capture_output=True
+            )
+
+            yield python_executable
     else:
         yield sys.executable

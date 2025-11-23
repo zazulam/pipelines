@@ -29,7 +29,7 @@ from kfp.compiler import Compiler
 from kfp.dsl import component
 from kfp.dsl import pipeline
 from kfp.pipeline_spec import pipeline_spec_pb2
-import kfp_server_api
+import kfp.server_api
 import yaml
 
 
@@ -242,11 +242,11 @@ class TestClient(parameterized.TestCase):
         self.client = client.Client(namespace='ns1')
 
     def test_wait_for_run_completion_invalid_token_should_raise_error(self):
-        with self.assertRaises(kfp_server_api.ApiException):
+        with self.assertRaises(kfp.server_api.ApiException):
             with patch.object(
                     self.client._run_api,
                     'run_service_get_run',
-                    side_effect=kfp_server_api.ApiException) as mock_get_run:
+                    side_effect=kfp.server_api.ApiException) as mock_get_run:
                 self.client.wait_for_run_completion(
                     run_id='foo', timeout=1, sleep_duration=0)
                 mock_get_run.assert_called_once()
@@ -257,7 +257,7 @@ class TestClient(parameterized.TestCase):
             # We need to iterate through multiple side effects in order to test this logic.
             mock_get_run.side_effect = [
                 Mock(state='unknown state'),
-                kfp_server_api.ApiException(status=401),
+                kfp.server_api.ApiException(status=401),
                 Mock(state='succeeded'),
             ]
 
@@ -303,7 +303,7 @@ class TestClient(parameterized.TestCase):
             experiment_name='foo', namespace='ns1')
         mock_get_url_prefix.assert_called_once()
 
-    @patch('kfp_server_api.V2beta1Experiment')
+    @patch('kfp.server_api.V2beta1Experiment')
     @patch(
         'kfp.Client.get_experiment',
         side_effect=ValueError('No experiment is found with name'))
@@ -379,7 +379,7 @@ class TestClient(parameterized.TestCase):
             mock_list_experiments.assert_called_once()
             mock_get_user_namespace.assert_called_once()
 
-    @patch('kfp_server_api.HealthzServiceApi.healthz_service_get_healthz')
+    @patch('kfp.server_api.HealthzServiceApi.healthz_service_get_healthz')
     def test_get_kfp_healthz(self, mock_get_kfp_healthz):
         mock_get_kfp_healthz.return_value = json.dumps([{'foo': 'bar'}])
         response = self.client.get_kfp_healthz()
@@ -387,8 +387,8 @@ class TestClient(parameterized.TestCase):
         assert (response == mock_get_kfp_healthz.return_value)
 
     @patch(
-        'kfp_server_api.HealthzServiceApi.healthz_service_get_healthz',
-        side_effect=kfp_server_api.ApiException)
+        'kfp.server_api.HealthzServiceApi.healthz_service_get_healthz',
+        side_effect=kfp.server_api.ApiException)
     def test_get_kfp_healthz_should_raise_error(self, mock_get_kfp_healthz):
         with self.assertRaises(TimeoutError):
             self.client.get_kfp_healthz(sleep_duration=0)
