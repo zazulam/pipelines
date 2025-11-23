@@ -17,7 +17,7 @@ git clone https://github.com/kubeflow/pipelines.git && cd pipelines
 We suggest using a tool like [virtual env](https://docs.python.org/3/library/venv.html) or something similar for isolating 
 your environment and/or packages for you development environment. For this setup we'll stick with virtual env. 
 
-For supported python versions, see the sdk [setup.py](https://github.com/kubeflow/pipelines/blob/master/sdk/python/setup.py). 
+For supported python versions, see the sdk [pyproject.toml](https://github.com/kubeflow/pipelines/blob/master/sdk/python/pyproject.toml). 
 
 ```bash
 # optional, replace with your tool of choice
@@ -43,27 +43,38 @@ Read more about it [here](https://setuptools.pypa.io/en/latest/userguide/develop
 pip install -e sdk/python
 ```
 
-The SDK also relies on a couple other python packages also found within KFP.
-These consists of the [api proto package](https://github.com/kubeflow/pipelines/tree/master/api) and the kfp [kubernetes_platform](https://github.com/kubeflow/pipelines/tree/master/kubernetes_platform) package.
+The KFP SDK includes the following components that were previously separate packages but are now consolidated into `kfp`:
+- **`kfp.pipeline_spec`**: Protocol buffer definitions for KFP pipeline specifications
+- **`kfp.server_api`**: Client API for communicating with the KFP backend server
+- **`kfp.kubernetes`**: Kubernetes-specific executor configurations
 
-For the proto code, we need protobuf-compiler to generate the python code. Read [here](../kubernetes_platform#dependencies) more about how to install this
-dependency. 
+### Generating Protocol Buffer Code
 
-You can install both packages either in development mode if you are planning to do active development on these, or simply do a regular install.
+The SDK relies on protocol buffer code generated from the KFP API definitions. To regenerate the protobuf code (e.g., after updating API definitions):
 
-To install the proto package:
 ```bash
-pushd api
-make generate python-dev # omit -dev for regular install
-popd
+cd sdk/python
+./generate_protos.sh
 ```
 
-To install the kubernetes_platform package:
+This script generates Python code for:
+- `kfp.pipeline_spec` from `api/v2alpha1/pipeline_spec.proto`
+- `kfp.kubernetes` from `kubernetes_platform/proto/kubernetes_executor_config.proto`
+
+### Building Distribution Packages
+
+To build wheel and source distributions for the KFP SDK:
+
 ```bash
-pushd kubernetes_platform
-make python-dev # omit -dev for regular install
-popd
+cd sdk/python
+python -m build
 ```
+
+This will create distribution files in the `dist/` directory:
+- `kfp-X.Y.Z-py3-none-any.whl` (wheel distribution)
+- `kfp-X.Y.Z.tar.gz` (source distribution)
+
+Note: You may need to install the `build` package first: `pip install build`
 
 ### Testing
 We suggest running unit tests using [`pytest`](https://docs.pytest.org/en/7.1.x/). From the project root, the following runs all KFP SDK unit tests:
