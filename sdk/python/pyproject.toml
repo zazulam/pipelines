@@ -69,3 +69,8 @@ exclude = ["*test*"]
 [tool.setuptools.dynamic]
 version = { attr = "kfp.version.__version__" }
 dependencies = { file = ["requirements.in"] }
+
+[tool.pytest.ini_options]
+# server_api/test/ contains auto-generated OpenAPI client tests that use
+# the old kfp_server_api import paths and are not part of the SDK test suite.
+collect_ignore_glob = ["**/server_api/test/*"]

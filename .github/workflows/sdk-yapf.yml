@@ -28,7 +28,7 @@ jobs:
         cache: 'pip'
 
     - name: Install dependencies
-      run: pip install yapf
+      run: pip install $(grep 'yapf==' sdk/python/requirements-dev.txt)
 
     - name: Run YAPF SDK Tests
       run: ./test/presubmit-yapf-sdk.sh

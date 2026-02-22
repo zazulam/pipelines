@@ -7,11 +7,11 @@ description: |
 inputs:
   protoc_version:
     required: true
-    default: "31.1"
+    default: "33.1"
     description: "protoc version"
   protobuf_python_version:
     required: true
-    default: "6.31.1"
+    default: "6.33.1"
     description: "protobuf python package version"
   setuptools_version:
     required: true

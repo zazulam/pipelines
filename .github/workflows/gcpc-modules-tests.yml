@@ -24,28 +24,13 @@ jobs:
           python-version: '3.10'
           cache: 'pip'
 
-      - name: Install protobuf-compiler
-        run: sudo apt update && sudo apt install -y protobuf-compiler
+      - name: Generate proto files
+        id: install-protobuf-deps
+        uses: ./.github/actions/protobuf
 
-      - name: Install setuptools
-        run: |
-          pip3 install setuptools
-          pip3 freeze
-          pip3 install build
-
-      - name: Install Wheel
-        run: pip3 install wheel==0.42.0
-
-      - name: Generate API proto files
-        working-directory: ./api
-        run: make clean python
-
-      - name: Generate kubernetes proto files
-        working-directory: ./kubernetes_platform
-        run: make clean python
-
-      - name: Install kfp from source
-        run: pip install sdk/python
+      - name: Build & install kfp
+        id: install-kfp-k8s-deps
+        uses: ./.github/actions/kfp-k8s
 
       - name: Install google-cloud component
         run: pip install components/google-cloud

@@ -39,5 +39,8 @@ jobs:
         id: install-kfp-k8s-deps
         uses: ./.github/actions/kfp-k8s
 
+      - name: Install test dependencies
+        run: pip install pytest
+
       - name: Run tests
         run: pytest ./sdk/python/kfp/kubernetes/test
