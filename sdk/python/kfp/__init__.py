@@ -38,4 +38,8 @@ if os.environ.get('_KFP_RUNTIME', 'false') != 'true':
     # related to namespace packaging issue
     from kfp import components  # noqa: keep unused import
     from kfp import dsl  # noqa: keep unused import
-    from kfp.client import Client  # noqa: keep unused import
+    try:
+        from kfp.client import Client  # noqa: keep unused import
+    except ImportError:
+        # Client requires the kubernetes package (pip install kfp[kubernetes])
+        pass
