@@ -36,4 +36,5 @@ runs:
       run: |
         rm -rf dist/
         python -m build .
-        pip install "dist/*.whl[all]"
+        WHL=$(ls dist/*.whl)
+        pip install "${WHL}[all]"
