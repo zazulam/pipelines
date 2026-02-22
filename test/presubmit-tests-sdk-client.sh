@@ -17,18 +17,11 @@ source_root=$(pwd)
 SETUP_ENV="${SETUP_ENV:-true}"
 
 if [ "${SETUP_ENV}" = "true" ]; then
-  # Create a virtual environment and activate it
   python3 -m venv venv
   source venv/bin/activate
 
   python3 -m pip install --upgrade pip
-  python3 -m pip install -r sdk/python/requirements.txt
   python3 -m pip install -r sdk/python/requirements-dev.txt
-  python3 -m pip install setuptools
-  python3 -m pip install wheel==0.42.0
-  python3 -m pip install pytest
-  python3 -m pip install pytest-cov
-  python3 -m pip install --upgrade protobuf
 
   # regenerate protos
   cd api/
@@ -38,12 +31,11 @@ if [ "${SETUP_ENV}" = "true" ]; then
   make clean python
   cd ..
 
-  python3 -m pip install sdk/python
+  python3 -m pip install "sdk/python[all]"
 fi
 
 python -m pytest sdk/python/test/client/ -v -s -m client --cov=kfp
 
 if [ "${SETUP_ENV}" = "true" ]; then
-  # Deactivate the virtual environment
   deactivate
 fi

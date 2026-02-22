@@ -21,7 +21,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: 3.9
+          python-version: '3.10'
           cache: 'pip'
 
       - name: Install protobuf-compiler
@@ -40,7 +40,7 @@ jobs:
         working-directory: ./api
         run: make clean python
 
-      - name: Generate kfp-kubernetes proto files
+      - name: Generate kubernetes proto files
         working-directory: ./kubernetes_platform
         run: make clean python
 

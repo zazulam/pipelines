@@ -17,22 +17,13 @@ source_root=$(pwd)
 SETUP_ENV="${SETUP_ENV:-true}"
 
 if [ "${SETUP_ENV}" = "true" ]; then
-  # Create a virtual environment and activate it
   python3 -m venv venv
   source venv/bin/activate
 
   python3 -m pip install --upgrade pip
-  python3 -m pip install -r sdk/python/requirements.txt
   python3 -m pip install -r sdk/python/requirements-dev.txt
-  python3 -m pip install setuptools
-  python3 -m pip install wheel==0.42.0
-  python3 -m pip install pytest-cov
-  python3 -m pip install pytest
-  python3 -m pip install google_cloud_pipeline_components
-  python3 -m pip install docker
-  python3 -m pip install --upgrade protobuf
 
-  # regenerate the kfp-pipeline-spec and kfp-kubernetes protos
+  # regenerate protos
   cd api/
   make clean python
   cd ..
@@ -40,7 +31,7 @@ if [ "${SETUP_ENV}" = "true" ]; then
   make clean python
   cd ..
 
-  python3 -m pip install sdk/python
+  python3 -m pip install "sdk/python[all]"
 fi
 
 if [[ -z "${PULL_NUMBER}" ]]; then
@@ -52,6 +43,5 @@ fi
 python -m pytest sdk/python/test -v -s -m regression --cov=kfp
 
 if [ "${SETUP_ENV}" = "true" ]; then
-  # Deactivate the virtual environment
   deactivate
 fi

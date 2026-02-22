@@ -20,9 +20,9 @@ except ImportError:
 import sys
 import warnings
 
-if sys.version_info < (3, 9):
+if sys.version_info < (3, 10):
     warnings.warn(
-        ('KFP will drop support for Python 3.9 on October 1, 2026. To use new versions of the KFP SDK after that date, you will need to upgrade to Python >= 3.10. See https://devguide.python.org/versions/ for more details.'
+        ('KFP v3 requires Python >= 3.10. Please upgrade your Python version. See https://devguide.python.org/versions/ for more details.'
         ),
         FutureWarning,
         stacklevel=2,

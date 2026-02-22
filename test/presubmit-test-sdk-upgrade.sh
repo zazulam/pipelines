@@ -21,8 +21,7 @@ python3 -m pip install kfp
 LATEST_KFP_SDK_RELEASE=$(python3 -m pip show kfp | grep "Version:" | awk '{print $2}' | awk '{$1=$1};1')
 echo "Installed latest KFP SDK version: $LATEST_KFP_SDK_RELEASE"
 
-# Before installing KFP we need to generate proto code from source since
-# these are compiled into the consolidated kfp package.
+# Generate proto code from source since these are compiled into the kfp package.
 
 # Generate pipeline_spec proto
 pushd api
@@ -34,8 +33,8 @@ pushd kubernetes_platform
 make python
 popd
 
-# install in normal mode, not editable mode, to emulate typical user upgrade behavior
-python3 -m pip install sdk/python
+# install in normal mode to emulate typical user upgrade behavior
+python3 -m pip install "sdk/python[all]"
 # HEAD will only be different than latest for a release PR
 HEAD_KFP_SDK_VERSION=$(python3 -m pip show kfp | grep "Version:" | awk '{print $2}')
 echo "Successfully upgraded to KFP SDK version @ HEAD: $HEAD_KFP_SDK_VERSION"

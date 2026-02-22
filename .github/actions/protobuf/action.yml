@@ -1,9 +1,9 @@
-name: "Install Proto dependencies & Pipeline Spec"
+name: "Install Protobuf & Generate Proto Files"
 description: |
   This action pins various Proto generation packages to default versions and
   installs these dependencies in the workflow environment. It will also
-  install the kfp-pipeline-spec. Whenever KFP project updates generation
-  packages, the defaults here must be updated.
+  generate the pipeline_spec proto files. Whenever KFP project updates
+  generation packages, the defaults here must be updated.
 inputs:
   protoc_version:
     required: true
@@ -55,7 +55,7 @@ runs:
       shell: bash
       run: make clean python
 
-    - name: Generate kfp-pipeline-spec golang files
+    - name: Generate API golang files
       if: ${{ inputs.generate_golang_proto == 'true' }}
       working-directory: ./api
       shell: bash

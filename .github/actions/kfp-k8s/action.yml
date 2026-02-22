@@ -1,5 +1,5 @@
-name: "Install kfp & kfp-kubernetes"
-description: "Install kfp & kfp-kubernetes"
+name: "Build & Install KFP"
+description: "Build and install the consolidated kfp package from source"
 inputs:
   build_version:
     required: true
@@ -36,4 +36,4 @@ runs:
       run: |
         rm -rf dist/
         python -m build .
-        pip install dist/*.whl
+        pip install "dist/*.whl[all]"
