@@ -15,7 +15,7 @@
 from google.protobuf import json_format
 from kfp import dsl
 from kfp import kubernetes
-from kfp.dsl import OutputPath
+
 
 class TestUseConfigMapAsVolume:
 
@@ -282,7 +282,7 @@ class TestUseConfigMapAsVolume:
             kubernetes.use_config_map_as_volume(
                 task,
                 config_map_name=cm_name_input_1,
-                mount_path="cmpath"
+                mount_path='cmpath'
             )
 
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
@@ -314,19 +314,19 @@ class TestUseConfigMapAsVolume:
             kubernetes.use_config_map_as_volume(
                 t1,
                 config_map_name=cm_name_input_1,
-                mount_path="cmpath"
+                mount_path='cmpath'
             )
             kubernetes.use_config_map_as_volume(
                 t1,
                 config_map_name=cm_name_input_2,
-                mount_path="cmpath"
+                mount_path='cmpath'
             )
 
             t2 = comp()
             kubernetes.use_config_map_as_volume(
                 t2,
                 config_map_name=cm_name_input_2,
-                mount_path="cmpath"
+                mount_path='cmpath'
             )
 
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
@@ -380,7 +380,7 @@ class TestUseConfigMapAsVolume:
             kubernetes.use_config_map_as_volume(
                 t1,
                 config_map_name=t2.output,
-                mount_path="cmpath"
+                mount_path='cmpath'
             )
 
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
@@ -418,18 +418,18 @@ class TestUseConfigMapAsVolume:
             kubernetes.use_config_map_as_volume(
                 t1,
                 config_map_name=t2.output,
-                mount_path="cmpath"
+                mount_path='cmpath'
             )
             kubernetes.use_config_map_as_volume(
                 t1,
                 config_map_name=t3.output,
-                mount_path="cmpath"
+                mount_path='cmpath'
             )
             t4 = comp()
             kubernetes.use_config_map_as_volume(
                 t4,
                 config_map_name=t2.output,
-                mount_path="cmpath"
+                mount_path='cmpath'
             )
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {

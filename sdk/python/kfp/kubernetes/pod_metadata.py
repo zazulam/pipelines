@@ -22,7 +22,8 @@ def add_pod_label(
     label_key: str,
     label_value: str,
 ) -> PipelineTask:
-    """Add a label to the task Pod's `metadata
+    """Add a label to the task Pod's `metadata.
+
     <https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#Pod>`_.
 
     Each label is a key-value pair, corresponding to the metadata's `ObjectMeta <https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/object-meta/#ObjectMeta`_ field.
@@ -48,7 +49,8 @@ def add_pod_annotation(
     annotation_key: str,
     annotation_value: str,
 ) -> PipelineTask:
-    """Add an annotation to the task Pod's `metadata
+    """Add an annotation to the task Pod's `metadata.
+
     <https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#Pod>`_.
 
     Each annotation is a key-value pair, corresponding to the metadata's `ObjectMeta <https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/object-meta/#ObjectMeta`_ field.

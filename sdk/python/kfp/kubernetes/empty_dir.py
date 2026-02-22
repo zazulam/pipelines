@@ -31,7 +31,7 @@ def empty_dir_mount(
 
     Args:
         task: Pipeline task.
-        volume_name: Name of the EmptyDir volume. 
+        volume_name: Name of the EmptyDir volume.
         mount_path: Path within the container at which the EmptyDir should be mounted.
         medium: Storage medium to back the EmptyDir. Must be one of `Memory` or `HugePages`. Defaults to `None`.
         size_limit: Maximum size of the EmptyDir. For example, `5Gi`. Defaults to `None`.

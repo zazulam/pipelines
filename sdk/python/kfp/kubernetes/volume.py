@@ -34,9 +34,13 @@ def CreatePVC(
     annotations: Optional[Dict[str, str]] = None,
 ):
     """Create a PersistentVolumeClaim, which can be used by downstream tasks.
-    See `PersistentVolume <https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistent-volumes>`_
-    and `PersistentVolumeClaim <https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims>`_
-    documentation for more information about the component input parameters.
+    See `PersistentVolume.
+
+    <https://kubernetes.io/docs/concepts/storage/persistent-
+    volumes/#persistent-volumes>`_ and `PersistentVolumeClaim
+    <https://kubernetes.io/docs/concepts/storage/persistent-
+    volumes/#persistentvolumeclaims>`_ documentation for more information about
+    the component input parameters.
 
     Args:
         access_modes: AccessModes to request for the provisioned PVC. May
@@ -115,7 +119,8 @@ def _assign_pvc_name_to_msg(
 ) -> bool:
     """Assigns pvc_name to the msg's pvc_reference oneof.
 
-    Returns True if pvc_name is an upstream task output; otherwise, False.
+    Returns True if pvc_name is an upstream task output; otherwise,
+    False.
     """
     if isinstance(pvc_name, str):
         msg.constant = pvc_name
@@ -145,6 +150,7 @@ def add_ephemeral_volume(
     annotations: Dict[str, str] = None,
 ):
     """Add a `generic ephemeral volume.
+
     <https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes>`_. to a task.
 
     Args:
@@ -190,6 +196,6 @@ def add_ephemeral_volume(
                 labels=labels or {},
             ) if annotations or labels else None,
         ))
-    task.platform_config["kubernetes"] = json_format.MessageToDict(msg)
+    task.platform_config['kubernetes'] = json_format.MessageToDict(msg)
 
     return task

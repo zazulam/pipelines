@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for pipeline_orchestrator.py."""
-import functools
 import io as stdlib_io
 import os
 import sys

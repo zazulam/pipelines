@@ -24,8 +24,8 @@ def comp():
 def my_pipeline():
     task = comp()
     kubernetes.empty_dir_mount(
-            task, 
-            volume_name='emptydir-vol-1', 
+            task,
+            volume_name='emptydir-vol-1',
             mount_path='/mnt/my_vol_1',
             medium='Memory',
             size_limit='1Gi'

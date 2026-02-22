@@ -19,7 +19,6 @@ whereas these tests focus on how the task dispatcher should behave,
 irrespective of the runner. While there will inevitably some overlap, we
 should seek to minimize it.
 """
-import functools
 import io
 import os
 import re

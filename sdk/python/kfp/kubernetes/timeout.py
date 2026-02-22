@@ -21,7 +21,8 @@ def set_timeout(
     task: PipelineTask,
     seconds: int,
 ) -> PipelineTask:
-    """Add timeout to the task Pod's `active_deadline_seconds
+    """Add timeout to the task Pod's `active_deadline_seconds.
+
     <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#podspec-v1-core>`_.
 
     Timeout an integer greater than 0, corresponding to the podspec active_deadline_seconds <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#podspec-v1-core`_ field.

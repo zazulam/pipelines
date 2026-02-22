@@ -15,9 +15,8 @@
 from typing import Dict, Union
 
 from google.protobuf import json_format
-
-from kfp.compiler.pipeline_spec_builder import to_protobuf_value
-from kfp.dsl import PipelineTask, pipeline_channel
+from kfp.dsl import pipeline_channel
+from kfp.dsl import PipelineTask
 from kfp.kubernetes import common
 from kfp.kubernetes import kubernetes_executor_config_pb2 as pb
 
@@ -28,8 +27,10 @@ def use_secret_as_env(
     secret_key_to_env: Dict[str, str],
     optional: bool = False,
 ) -> PipelineTask:
-    """Use a Kubernetes Secret as an environment variable as described by the `Kubernetes documentation
-    https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables `_.
+    """Use a Kubernetes Secret as an environment variable as described by the
+    `Kubernetes documentation
+    https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-
+    environment-variables `_.
 
     Args:
         task: Pipeline task.
@@ -71,7 +72,10 @@ def use_secret_as_volume(
     optional: bool = False,
 ) -> PipelineTask:
     """Use a Kubernetes Secret by mounting its data to the task's container as
-    described by the `Kubernetes documentation <https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-files-from-a-pod>`_.
+    described by the `Kubernetes documentation.
+
+    <https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-
+    as-files-from-a-pod>`_.
 
     Args:
         task: Pipeline task.

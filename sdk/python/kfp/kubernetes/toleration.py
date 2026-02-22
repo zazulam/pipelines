@@ -14,7 +14,8 @@
 from typing import Optional, Union
 
 from google.protobuf import json_format
-from kfp.dsl import PipelineTask, pipeline_channel
+from kfp.dsl import pipeline_channel
+from kfp.dsl import PipelineTask
 from kfp.kubernetes import common
 from kfp.kubernetes import kubernetes_executor_config_pb2 as pb
 
@@ -27,12 +28,13 @@ except ImportError:
 def add_toleration(
     task: PipelineTask,
     key: Optional[str] = None,
-    operator: Optional[Literal["Equal", "Exists"]] = None,
+    operator: Optional[Literal['Equal', 'Exists']] = None,
     value: Optional[str] = None,
-    effect: Optional[Literal["NoExecute", "NoSchedule", "PreferNoSchedule"]] = None,
+    effect: Optional[Literal['NoExecute', 'NoSchedule', 'PreferNoSchedule']] = None,
     toleration_seconds: Optional[int] = None,
 ):
-    """Add a `toleration<https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/>`_. to a task.
+    """Add a `toleration<https://kubernetes.io/docs/concepts/scheduling-
+    eviction/taint-and-toleration/>`_. to a task.
 
     Args:
         task:
@@ -75,7 +77,7 @@ def add_toleration(
             toleration_seconds=toleration_seconds,
         )
     )
-    task.platform_config["kubernetes"] = json_format.MessageToDict(msg)
+    task.platform_config['kubernetes'] = json_format.MessageToDict(msg)
 
     return task
 
@@ -128,23 +130,23 @@ def add_toleration_json(task: PipelineTask,
             common.parse_k8s_parameter_input(toleration_json, task)
         )
         msg.tolerations.append(toleration)
-        task.platform_config["kubernetes"] = json_format.MessageToDict(msg)
+        task.platform_config['kubernetes'] = json_format.MessageToDict(msg)
     elif isinstance(toleration_json, list):
         for toleration in toleration_json:
             _add_dict_toleration(task, toleration)
     elif isinstance(toleration_json, dict):
         _add_dict_toleration(task, toleration_json)
     else:
-        raise ValueError("toleration_json must be a dict, list, or input parameter")
+        raise ValueError('toleration_json must be a dict, list, or input parameter')
 
     return task
 
 def _add_dict_toleration(task: PipelineTask, toleration: dict):
     add_toleration(
         task,
-        key=toleration.get("key"),
-        value=toleration.get("value"),
-        operator=toleration.get("operator"),
-        effect=toleration.get("effect"),
-        toleration_seconds=toleration.get("toleration_seconds"),
+        key=toleration.get('key'),
+        value=toleration.get('value'),
+        operator=toleration.get('operator'),
+        effect=toleration.get('effect'),
+        toleration_seconds=toleration.get('toleration_seconds'),
     )

@@ -28,7 +28,7 @@ jobs:
         run: sudo apt update && sudo apt install -y protobuf-compiler
 
       - name: Install setuptools
-        run: | 
+        run: |
           pip3 install setuptools
           pip3 freeze
           pip3 install build

@@ -77,7 +77,7 @@ class TestTimeout:
                 ValueError,
                 match=r'Argument for "seconds" must be an integer greater or equals to 0. Got invalid input: -20.',
         ):
-            
+
             @dsl.pipeline
             def my_pipeline():
                 task = comp()

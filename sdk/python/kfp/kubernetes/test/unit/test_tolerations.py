@@ -267,25 +267,25 @@ class TestTolerationsJSON:
             kubernetes.add_toleration_json(
                 t1,
                 toleration_json={
-                    "key": "key3",
-                    "operator": "Equal",
-                    "value": "value3",
-                    "effect": "NoSchedule"
+                    'key': 'key3',
+                    'operator': 'Equal',
+                    'value': 'value3',
+                    'effect': 'NoSchedule'
                 },
             )
             kubernetes.add_toleration_json(
                 t1,
                 toleration_json=[
                     {
-                        "key": "key1",
-                        "operator": "Equal",
-                        "value": "value1",
-                        "effect": "NoSchedule"
+                        'key': 'key1',
+                        'operator': 'Equal',
+                        'value': 'value1',
+                        'effect': 'NoSchedule'
                     },
                     {
-                        "key": "key2",
-                        "operator": "Exists",
-                        "effect": "NoExecute"
+                        'key': 'key2',
+                        'operator': 'Exists',
+                        'effect': 'NoExecute'
                     }
                 ],
             )

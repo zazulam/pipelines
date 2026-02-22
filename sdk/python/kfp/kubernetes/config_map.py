@@ -15,7 +15,8 @@
 from typing import Dict, Union
 
 from google.protobuf import json_format
-from kfp.dsl import PipelineTask, pipeline_channel
+from kfp.dsl import pipeline_channel
+from kfp.dsl import PipelineTask
 from kfp.kubernetes import common
 from kfp.kubernetes import kubernetes_executor_config_pb2 as pb
 
@@ -26,8 +27,10 @@ def use_config_map_as_env(
     config_map_key_to_env: Dict[str, str],
     optional: bool = False,
 ) -> PipelineTask:
-    """Use a Kubernetes ConfigMap as an environment variable as described by the `Kubernetes documentation
-    https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#define-container-environment-variables-using-configmap-data` _.
+    """Use a Kubernetes ConfigMap as an environment variable as described by
+    the `Kubernetes documentation https://kubernetes.io/docs/tasks/configure-
+    pod-container/configure-pod-configmap/#define-container-environment-
+    variables-using-configmap-data` _.
 
     Args:
         task: Pipeline task.
@@ -69,8 +72,11 @@ def use_config_map_as_volume(
     mount_path: str,
     optional: bool = False,
 ) -> PipelineTask:
-    """Use a Kubernetes ConfigMap by mounting its data to the task's container as
-    described by the `Kubernetes documentation <https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#add-configmap-data-to-a-volume>`_.
+    """Use a Kubernetes ConfigMap by mounting its data to the task's container
+    as described by the `Kubernetes documentation.
+
+    <https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-
+    configmap/#add-configmap-data-to-a-volume>`_.
 
     Args:
         task: Pipeline task.

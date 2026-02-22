@@ -25,8 +25,8 @@ class TestEmptyDirMounts:
         def my_pipeline():
             task = comp()
             kubernetes.empty_dir_mount(
-                task, 
-                volume_name='emptydir-vol-1', 
+                task,
+                volume_name='emptydir-vol-1',
                 mount_path='/mnt/my_vol_1',
                 medium='Memory',
                 size_limit='1Gi'
@@ -57,14 +57,14 @@ class TestEmptyDirMounts:
         def my_pipeline():
             task = comp()
             kubernetes.empty_dir_mount(
-                task, 
+                task,
                 volume_name='emptydir-vol-1',
                 mount_path='/mnt/my_vol_1',
                 medium='Memory',
                 size_limit='1Gi'
             )
             kubernetes.empty_dir_mount(
-                task, 
+                task,
                 volume_name='emptydir-vol-2',
                 mount_path='/mnt/my_vol_2'
             )
@@ -99,7 +99,7 @@ class TestEmptyDirMounts:
             task = comp()
 
             kubernetes.empty_dir_mount(
-                task, 
+                task,
                 volume_name='emptydir-vol-1',
                 mount_path='/mnt/my_vol_1',
                 medium='Memory',

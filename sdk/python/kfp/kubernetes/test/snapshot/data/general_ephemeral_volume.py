@@ -30,7 +30,7 @@ def my_pipeline():
         mount_path='path',
         access_modes=['ReadWriteOnce'],
         size='5Gi',
-        annotations={"annotation1": "a1"},
+        annotations={'annotation1': 'a1'},
     )
 
 

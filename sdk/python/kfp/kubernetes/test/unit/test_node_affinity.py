@@ -20,7 +20,8 @@ from kfp import kubernetes
 class TestNodeAffinity:
 
     def test_add_match_expressions(self):
-        """Test adding node affinity with matchExpressions (required scheduling)."""
+        """Test adding node affinity with matchExpressions (required
+        scheduling)."""
         @dsl.pipeline
         def my_pipeline():
             task = comp()
@@ -130,7 +131,8 @@ class TestNodeAffinity:
         }
 
     def test_add_combined_match_expressions_and_fields(self):
-        """Test adding node affinity with both matchExpressions and matchFields."""
+        """Test adding node affinity with both matchExpressions and
+        matchFields."""
         @dsl.pipeline
         def my_pipeline():
             task = comp()
@@ -324,7 +326,7 @@ class TestNodeAffinity:
                     match_expressions=[{'key': 'disktype', 'operator': 'INVALID', 'values': ['ssd']}]
                 )
             except ValueError as e:
-                assert "Invalid operator" in str(e)
+                assert 'Invalid operator' in str(e)
             else:
                 assert False, 'Expected ValueError for invalid operator'
 
@@ -339,7 +341,7 @@ class TestNodeAffinity:
                     weight=0
                 )
             except ValueError as e:
-                assert "weight must be between 1 and 100" in str(e)
+                assert 'weight must be between 1 and 100' in str(e)
             else:
                 assert False, 'Expected ValueError for weight < 1'
 
@@ -354,7 +356,7 @@ class TestNodeAffinity:
                     weight=101
                 )
             except ValueError as e:
-                assert "weight must be between 1 and 100" in str(e)
+                assert 'weight must be between 1 and 100' in str(e)
             else:
                 assert False, 'Expected ValueError for weight > 100'
 
@@ -362,7 +364,8 @@ class TestNodeAffinity:
 class TestNodeAffinityJSON:
 
     def test_component_pipeline_input_required_scheduling(self):
-        """Test JSON-based node affinity with pipeline input for required scheduling."""
+        """Test JSON-based node affinity with pipeline input for required
+        scheduling."""
         @dsl.pipeline
         def my_pipeline(affinity_input: dict):
             task = comp()
@@ -388,9 +391,10 @@ class TestNodeAffinityJSON:
                 }
             }
         }
-    
+
     def test_component_pipeline_input_multiple_tasks(self):
-        """Test JSON-based node affinity with multiple tasks and pipeline inputs."""
+        """Test JSON-based node affinity with multiple tasks and pipeline
+        inputs."""
         @dsl.pipeline
         def my_pipeline(affinity_input_1: dict, affinity_input_2: dict):
             t1 = comp()
@@ -431,7 +435,8 @@ class TestNodeAffinityJSON:
         }
 
     def test_component_upstream_input(self):
-        """Test JSON-based node affinity with upstream task input parameters."""
+        """Test JSON-based node affinity with upstream task input
+        parameters."""
         @dsl.pipeline
         def my_pipeline():
             upstream_task = comp_with_output()
@@ -462,7 +467,8 @@ class TestNodeAffinityJSON:
         }
 
     def test_overwrite_previous_json(self):
-        """Test that applying node affinity JSON multiple times overwrites the previous."""
+        """Test that applying node affinity JSON multiple times overwrites the
+        previous."""
         @dsl.pipeline
         def my_pipeline(affinity_input_1: dict, affinity_input_2: dict):
             task = comp()
@@ -474,7 +480,7 @@ class TestNodeAffinityJSON:
             kubernetes.add_node_affinity_json(
                 task,
                 node_affinity_json=affinity_input_2,
-            )        
+            )
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {
                 'kubernetes': {
@@ -545,11 +551,11 @@ class TestNodeAffinityJSON:
         def my_pipeline():
             task = comp()
             # Missing required fields for V1NodeAffinity
-            invalid_json = {"foo": "bar"}
+            invalid_json = {'foo': 'bar'}
             try:
                 kubernetes.add_node_affinity_json(task, node_affinity_json=invalid_json)
             except ValueError as e:
-                assert "Invalid V1NodeAffinity JSON" in str(e)
+                assert 'Invalid V1NodeAffinity JSON' in str(e)
             else:
                 assert False, 'Expected ValueError for invalid node_affinity_json'
 
@@ -561,4 +567,4 @@ def comp():
 
 @dsl.component()
 def comp_with_output() -> str:
-    return "test_output" 
+    return 'test_output'

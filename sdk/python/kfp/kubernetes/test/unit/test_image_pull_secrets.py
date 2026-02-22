@@ -15,7 +15,6 @@
 from google.protobuf import json_format
 from kfp import dsl
 from kfp import kubernetes
-import pytest
 
 
 class TestImagePullSecret:
@@ -145,7 +144,7 @@ class TestImagePullSecret:
             kubernetes.set_image_pull_secrets(t1, [input_1])
             t2 = comp()
             kubernetes.set_image_pull_secrets(t2, [input_1, input_2])
-            kubernetes.set_image_pull_secrets(t2, ["another-secret"])
+            kubernetes.set_image_pull_secrets(t2, ['another-secret'])
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {
                 'kubernetes': {

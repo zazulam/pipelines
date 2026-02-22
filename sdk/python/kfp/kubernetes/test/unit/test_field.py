@@ -26,7 +26,7 @@ class TestUseFieldPathAsEnv:
             task = comp()
             kubernetes.use_field_path_as_env(
                 task,
-                env_name="KFP_RUN_NAME",
+                env_name='KFP_RUN_NAME',
                 field_path="metadata.annotations['pipelines.kubeflow.org/run_name']"
             )
 
@@ -56,13 +56,13 @@ class TestUseFieldPathAsEnv:
             task = comp()
             kubernetes.use_field_path_as_env(
                 task,
-                env_name="KFP_RUN_NAME",
+                env_name='KFP_RUN_NAME',
                 field_path="metadata.annotations['pipelines.kubeflow.org/run_name']"
             )
             kubernetes.use_field_path_as_env(
                 task,
-                env_name="POD_NAME",
-                field_path="metadata.name"
+                env_name='POD_NAME',
+                field_path='metadata.name'
             )
 
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {

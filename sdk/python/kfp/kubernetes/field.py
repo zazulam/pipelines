@@ -24,7 +24,8 @@ def use_field_path_as_env(
     field_path: str,
 ) -> PipelineTask:
     """Use a Kubernetes Field Path as an environment variable as described in
-    https://kubernetes.io/docs/tasks/inject-data-application/environment-variable-expose-pod-information
+    https://kubernetes.io/docs/tasks/inject-data-application/environment-
+    variable-expose-pod-information.
 
     Args:
         task: Pipeline task.

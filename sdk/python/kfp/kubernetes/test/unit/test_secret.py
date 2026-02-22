@@ -246,7 +246,7 @@ class TestUseSecretAsVolume:
             kubernetes.use_secret_as_volume(
                 task,
                 secret_name=secret_name_input_1,
-                mount_path="secretpath"
+                mount_path='secretpath'
             )
 
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
@@ -278,19 +278,19 @@ class TestUseSecretAsVolume:
             kubernetes.use_secret_as_volume(
                 t1,
                 secret_name=secret_name_input_1,
-                mount_path="secretpath"
+                mount_path='secretpath'
             )
             kubernetes.use_secret_as_volume(
                 t1,
                 secret_name=secret_name_input_2,
-                mount_path="secretpath"
+                mount_path='secretpath'
             )
 
             t2 = comp()
             kubernetes.use_secret_as_volume(
                 t2,
                 secret_name=secret_name_input_2,
-                mount_path="secretpath"
+                mount_path='secretpath'
             )
 
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
@@ -344,7 +344,7 @@ class TestUseSecretAsVolume:
             kubernetes.use_secret_as_volume(
                 t1,
                 secret_name=t2.output,
-                mount_path="secretpath"
+                mount_path='secretpath'
             )
 
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
@@ -382,18 +382,18 @@ class TestUseSecretAsVolume:
             kubernetes.use_secret_as_volume(
                 t1,
                 secret_name=t2.output,
-                mount_path="secretpath"
+                mount_path='secretpath'
             )
             kubernetes.use_secret_as_volume(
                 t1,
                 secret_name=t3.output,
-                mount_path="secretpath"
+                mount_path='secretpath'
             )
             t4 = comp()
             kubernetes.use_secret_as_volume(
                 t4,
                 secret_name=t2.output,
-                mount_path="secretpath"
+                mount_path='secretpath'
             )
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {

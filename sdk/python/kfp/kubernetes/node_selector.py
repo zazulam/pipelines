@@ -11,10 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Optional, Union
+from typing import Union
 
 from google.protobuf import json_format
-from kfp.dsl import PipelineTask, pipeline_channel
+from kfp.dsl import pipeline_channel
+from kfp.dsl import PipelineTask
 from kfp.kubernetes import common
 
 
@@ -23,7 +24,8 @@ def add_node_selector(
         label_key: str,
         label_value: str,
 ) -> PipelineTask:
-    """Add a constraint to the task Pod's `nodeSelector
+    """Add a constraint to the task Pod's `nodeSelector.
+
     <https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector>`_.
 
     Each constraint is a key-value pair, corresponding to the PodSpec's `nodeSelector <https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling>`_ field.
@@ -50,7 +52,7 @@ def add_node_selector_json(
         task: PipelineTask,
         node_selector_json: Union[pipeline_channel.PipelineParameterChannel, dict],
 ) -> PipelineTask:
-    """Add a pod nodeSelector constraint to the task Pod's `nodeSelector'
+    """Add a pod nodeSelector constraint to the task Pod's `nodeSelector'.
 
     Args:
         task: Pipeline task.
