@@ -21,18 +21,18 @@ python3 -m pip install kfp
 LATEST_KFP_SDK_RELEASE=$(python3 -m pip show kfp | grep "Version:" | awk '{print $2}' | awk '{$1=$1};1')
 echo "Installed latest KFP SDK version: $LATEST_KFP_SDK_RELEASE"
 
-# Before installing KFP we need to install our kfp dependencies from source since
-# these packages are patch version aligned, and during releases they may be
-# unreleased in PyPi.
+# Before installing KFP we need to generate proto code from source since
+# these are compiled into the consolidated kfp package.
 
-# Build (to generate proto code) and install kfp-pipeline-spec
+# Generate pipeline_spec proto
 pushd api
 make python
-python3 -m pip install v2alpha1/python
 popd
 
-# Install kfp-server-api
-python3 -m pip install backend/api/v2beta1/python_http_client
+# Generate kubernetes_executor_config proto
+pushd kubernetes_platform
+make python
+popd
 
 # install in normal mode, not editable mode, to emulate typical user upgrade behavior
 python3 -m pip install sdk/python

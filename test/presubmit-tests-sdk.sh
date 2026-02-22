@@ -31,14 +31,16 @@ if [ "${SETUP_ENV}" = "true" ]; then
   python3 -m pip install google_cloud_pipeline_components
   python3 -m pip install docker
   python3 -m pip install --upgrade protobuf
-  python3 -m pip install sdk/python
 
-  # regenerate the kfp-pipeline-spec
+  # regenerate the kfp-pipeline-spec and kfp-kubernetes protos
   cd api/
   make clean python
   cd ..
-  # install the local kfp-pipeline-spec
-  python3 -m pip install -I api/v2alpha1/python
+  cd kubernetes_platform/
+  make clean python
+  cd ..
+
+  python3 -m pip install sdk/python
 fi
 
 if [[ -z "${PULL_NUMBER}" ]]; then

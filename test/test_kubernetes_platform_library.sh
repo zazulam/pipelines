@@ -18,15 +18,13 @@ source_root=$(pwd)
 pip install --upgrade pip
 pip install wheel
 
+pushd "$source_root/api"
+make clean python
+popd
+
 pushd "$source_root/kubernetes_platform"
 make clean python
 popd
-## remove
-pushd "$source_root/api"
-make clean python
-pip install "$source_root/api/v2alpha1/python"
-popd
-##
-pip install -e "$source_root/sdk/python"
-pip install -e "$source_root/kubernetes_platform/python[dev]"
-pytest "$source_root/kubernetes_platform/python/kfp/test"
+
+pip install -e "$source_root/sdk/python[dev]"
+pytest "$source_root/sdk/python/kfp/kubernetes/test"

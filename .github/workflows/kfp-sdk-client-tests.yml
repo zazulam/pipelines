@@ -74,11 +74,10 @@ jobs:
         id: install-protobuf-deps
         uses: ./.github/actions/protobuf
 
-      - name: Install build tool
-        shell: bash
-        run: |
-          pip install --upgrade pip
-          pip install build==${{ env.PYTHON_BUILD_PKG_VERSION }}
+      - name: Install kfp & kfp-kubernetes from source
+        if: ${{ steps.install-protobuf-deps.outcome == 'success' }}
+        id: install-kfp-k8s-deps
+        uses: ./.github/actions/kfp-k8s
 
       - name: Install Test dependencies
         run: |
@@ -86,15 +85,6 @@ jobs:
           pip install -r sdk/python/requirements-dev.txt
           pip install pytest
           pip install pytest-cov
-
-      - name: Build & install kfp-server-api dist
-        id: install-kfp-server-api
-        shell: bash
-        working-directory: backend/api/v2beta1/python_http_client
-        run: |
-          rm -rf dist/
-          python -m build .
-          pip install dist/*.whl
 
       - name: Run tests
         id: tests

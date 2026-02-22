@@ -29,14 +29,16 @@ if [ "${SETUP_ENV}" = "true" ]; then
   python3 -m pip install pytest
   python3 -m pip install pytest-cov
   python3 -m pip install --upgrade protobuf
-  python3 -m pip install sdk/python
 
-  # regenerate the kfp-pipeline-spec
+  # regenerate protos
   cd api/
   make clean python
   cd ..
-  # install the local kfp-pipeline-spec
-  python3 -m pip install -I api/v2alpha1/python
+  cd kubernetes_platform/
+  make clean python
+  cd ..
+
+  python3 -m pip install sdk/python
 fi
 
 python -m pytest sdk/python/test/client/ -v -s -m client --cov=kfp

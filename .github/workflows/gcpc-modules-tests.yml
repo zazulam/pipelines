@@ -40,20 +40,11 @@ jobs:
         working-directory: ./api
         run: make clean python
 
-      - name: Install kfp-pipeline-spec from source
-        run: |
-          python3 -m pip install -I api/v2alpha1/python
+      - name: Generate kfp-kubernetes proto files
+        working-directory: ./kubernetes_platform
+        run: make clean python
 
-      - name: Build & install kfp-server-api dist
-        id: install-kfp-server-api
-        shell: bash
-        working-directory: backend/api/v2beta1/python_http_client
-        run: |
-          rm -rf dist/
-          python -m build .
-          pip install dist/*.whl
-
-      - name: Install python sdk
+      - name: Install kfp from source
         run: pip install sdk/python
 
       - name: Install google-cloud component
