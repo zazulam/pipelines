@@ -25,10 +25,7 @@ class TestTimeout:
         @dsl.pipeline
         def my_pipeline():
             task = comp()
-            kubernetes.set_timeout(
-                task,
-                seconds=20
-            )
+            kubernetes.set_timeout(task, seconds=20)
 
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {
@@ -49,22 +46,15 @@ class TestTimeout:
         @dsl.pipeline
         def my_pipeline():
             task = comp()
-            kubernetes.set_timeout(
-                task,
-                seconds=20
-            )
-            kubernetes.set_timeout(
-                task,
-                seconds=0
-            )
+            kubernetes.set_timeout(task, seconds=20)
+            kubernetes.set_timeout(task, seconds=0)
 
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {
                 'kubernetes': {
                     'deploymentSpec': {
                         'executors': {
-                            'exec-comp': {
-                            }
+                            'exec-comp': {}
                         }
                     }
                 }
@@ -81,10 +71,7 @@ class TestTimeout:
             @dsl.pipeline
             def my_pipeline():
                 task = comp()
-                kubernetes.set_timeout(
-                    task,
-                    seconds=-20
-                )
+                kubernetes.set_timeout(task, seconds=-20)
 
 
 @dsl.component

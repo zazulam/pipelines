@@ -41,7 +41,7 @@ else
   export KFP_PACKAGE_PATH="git+https://github.com/${REPO_NAME}@refs/pull/${PULL_NUMBER}/merge#egg=kfp&subdirectory=sdk/python"
 fi
 
-pytest -v -s sdk/python/kfp --cov=kfp --junitxml="${JUNIT_XML}"
+pytest -c sdk/python/pyproject.toml -v -s sdk/python/kfp --cov=kfp --junitxml="${JUNIT_XML}"
 
 if [ "${SETUP_ENV}" = "true" ]; then
   deactivate

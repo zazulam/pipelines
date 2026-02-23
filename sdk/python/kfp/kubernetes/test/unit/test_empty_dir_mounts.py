@@ -29,8 +29,7 @@ class TestEmptyDirMounts:
                 volume_name='emptydir-vol-1',
                 mount_path='/mnt/my_vol_1',
                 medium='Memory',
-                size_limit='1Gi'
-            )
+                size_limit='1Gi')
 
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {
@@ -61,13 +60,9 @@ class TestEmptyDirMounts:
                 volume_name='emptydir-vol-1',
                 mount_path='/mnt/my_vol_1',
                 medium='Memory',
-                size_limit='1Gi'
-            )
+                size_limit='1Gi')
             kubernetes.empty_dir_mount(
-                task,
-                volume_name='emptydir-vol-2',
-                mount_path='/mnt/my_vol_2'
-            )
+                task, volume_name='emptydir-vol-2', mount_path='/mnt/my_vol_2')
 
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {
@@ -80,8 +75,7 @@ class TestEmptyDirMounts:
                                     'mountPath': '/mnt/my_vol_1',
                                     'sizeLimit': '1Gi',
                                     'volumeName': 'emptydir-vol-1'
-                                },
-                                {
+                                }, {
                                     'mountPath': '/mnt/my_vol_2',
                                     'volumeName': 'emptydir-vol-2'
                                 }]
@@ -103,8 +97,7 @@ class TestEmptyDirMounts:
                 volume_name='emptydir-vol-1',
                 mount_path='/mnt/my_vol_1',
                 medium='Memory',
-                size_limit='1Gi'
-            )
+                size_limit='1Gi')
 
             # this should exist too
             kubernetes.set_image_pull_secrets(task, ['secret-name'])
@@ -123,7 +116,11 @@ class TestEmptyDirMounts:
                                 }],
                                 'imagePullSecret': [{
                                     'secretName': 'secret-name',
-                                    'secretNameParameter': {'runtimeValue': {'constant': 'secret-name'}},
+                                    'secretNameParameter': {
+                                        'runtimeValue': {
+                                            'constant': 'secret-name'
+                                        }
+                                    },
                                 }]
                             }
                         }
@@ -131,6 +128,7 @@ class TestEmptyDirMounts:
                 }
             }
         }
+
 
 @dsl.component
 def comp():

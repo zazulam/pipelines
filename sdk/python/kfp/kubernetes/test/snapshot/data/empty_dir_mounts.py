@@ -20,16 +20,17 @@ from kfp import kubernetes
 def comp():
     pass
 
+
 @dsl.pipeline
 def my_pipeline():
     task = comp()
     kubernetes.empty_dir_mount(
-            task,
-            volume_name='emptydir-vol-1',
-            mount_path='/mnt/my_vol_1',
-            medium='Memory',
-            size_limit='1Gi'
-        )
+        task,
+        volume_name='emptydir-vol-1',
+        mount_path='/mnt/my_vol_1',
+        medium='Memory',
+        size_limit='1Gi')
+
 
 if __name__ == '__main__':
     from kfp import compiler

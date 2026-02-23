@@ -48,8 +48,10 @@ def add_node_affinity(
     msg = common.get_existing_kubernetes_config_as_message(task)
     affinity_term = pb.NodeAffinityTerm()
 
-    _add_affinity_terms(affinity_term.match_expressions, match_expressions, 'match_expression', VALID_OPERATORS)
-    _add_affinity_terms(affinity_term.match_fields, match_fields, 'match_field', VALID_OPERATORS)
+    _add_affinity_terms(affinity_term.match_expressions, match_expressions,
+                        'match_expression', VALID_OPERATORS)
+    _add_affinity_terms(affinity_term.match_fields, match_fields, 'match_field',
+                        VALID_OPERATORS)
 
     if weight is not None:
         if not (1 <= weight <= 100):
@@ -58,6 +60,7 @@ def add_node_affinity(
     msg.node_affinity.append(affinity_term)
     task.platform_config['kubernetes'] = json_format.MessageToDict(msg)
     return task
+
 
 def validate_node_affinity(node_affinity_json: dict):
     """Validates a Python dictionary against the Kubernetes V1NodeAffinity
@@ -75,10 +78,12 @@ def validate_node_affinity(node_affinity_json: dict):
     from kubernetes import client
 
     try:
-        k8s_model_dict = common.deserialize_dict_to_k8s_model_keys(node_affinity_json)
+        k8s_model_dict = common.deserialize_dict_to_k8s_model_keys(
+            node_affinity_json)
         client.V1NodeAffinity(**k8s_model_dict)
     except (TypeError, ValueError) as e:
         raise ValueError(f'Invalid V1NodeAffinity JSON: {e}')
+
 
 def add_node_affinity_json(
     task: PipelineTask,
@@ -107,11 +112,13 @@ def add_node_affinity_json(
         if msg.node_affinity[i].HasField('node_affinity_json'):
             del msg.node_affinity[i]
     affinity_term = pb.NodeAffinityTerm()
-    input_param_spec = common.parse_k8s_parameter_input(node_affinity_json, task)
+    input_param_spec = common.parse_k8s_parameter_input(node_affinity_json,
+                                                        task)
     affinity_term.node_affinity_json.CopyFrom(input_param_spec)
     msg.node_affinity.append(affinity_term)
     task.platform_config['kubernetes'] = json_format.MessageToDict(msg)
     return task
+
 
 def _add_affinity_terms(
     affinity_list,
@@ -126,12 +133,13 @@ def _add_affinity_terms(
         if not key:
             raise ValueError(f"Each {term_kind} must have a non-empty 'key'.")
         if not operator:
-            raise ValueError(f"Each {term_kind} for key '{key}' must have a non-empty 'operator'.")
+            raise ValueError(
+                f"Each {term_kind} for key '{key}' must have a non-empty 'operator'."
+            )
         if operator not in valid_operators:
             raise ValueError(
                 f"Invalid operator '{operator}' for key '{key}' in {term_kind}. "
-                f'Must be one of {sorted(valid_operators)}.'
-            )
+                f'Must be one of {sorted(valid_operators)}.')
 
         affinity_list.add(
             key=key,

@@ -21,48 +21,46 @@ from kfp.kubernetes.node_affinity import add_node_affinity_json
 def print_hello_with_json_affinity():
     pass
 
+
 @dsl.component
 def print_hello_with_preferred_affinity():
     pass
+
 
 @dsl.component
 def print_hello_with_empty_json():
     pass
 
+
 @dsl.pipeline(name='test-node-affinity')
 def my_pipeline():
 
-   # Task 1: JSON-based node affinity with preferred scheduling
+    # Task 1: JSON-based node affinity with preferred scheduling
     task1 = print_hello_with_json_affinity()
     task1 = add_node_affinity_json(
-        task1,
-        {
-            'preferredDuringSchedulingIgnoredDuringExecution': [
-                {
-                    'weight': 100,
-                    'preference': {
-                        'matchExpressions': [
-                            {
-                                'key': 'disktype',
-                                'operator': 'In',
-                                'values': ['ssd']
-                            }
-                        ]
-                    }
+        task1, {
+            'preferredDuringSchedulingIgnoredDuringExecution': [{
+                'weight': 100,
+                'preference': {
+                    'matchExpressions': [{
+                        'key': 'disktype',
+                        'operator': 'In',
+                        'values': ['ssd']
+                    }]
                 }
-            ]
-        }
-    )
+            }]
+        })
 
     # Task 2: Preferred scheduling with weight
     task2 = print_hello_with_preferred_affinity()
     task2 = add_node_affinity(
         task2,
-        match_expressions=[
-            {'key': 'zone', 'operator': 'In', 'values': ['us-west-1']}
-        ],
-        weight=50
-    )
+        match_expressions=[{
+            'key': 'zone',
+            'operator': 'In',
+            'values': ['us-west-1']
+        }],
+        weight=50)
 
     # Task 3: Empty JSON (should not set any affinity)
     task3 = print_hello_with_empty_json()
@@ -71,33 +69,24 @@ def my_pipeline():
     # Task 4: Complex JSON with multiple preferred terms
     task4 = print_hello_with_json_affinity()
     task4 = add_node_affinity_json(
-        task4,
-        {
-            'preferredDuringSchedulingIgnoredDuringExecution': [
-                {
-                    'weight': 100,
-                    'preference': {
-                        'matchExpressions': [
-                            {
-                                'key': 'zone',
-                                'operator': 'In',
-                                'values': ['us-west-1']
-                            }
-                        ]
-                    }
-                },
-                {
-                    'weight': 50,
-                    'preference': {
-                        'matchExpressions': [
-                            {
-                                'key': 'instance-type',
-                                'operator': 'In',
-                                'values': ['n1-standard-4']
-                            }
-                        ]
-                    }
+        task4, {
+            'preferredDuringSchedulingIgnoredDuringExecution': [{
+                'weight': 100,
+                'preference': {
+                    'matchExpressions': [{
+                        'key': 'zone',
+                        'operator': 'In',
+                        'values': ['us-west-1']
+                    }]
                 }
-            ]
-        }
-    )
+            }, {
+                'weight': 50,
+                'preference': {
+                    'matchExpressions': [{
+                        'key': 'instance-type',
+                        'operator': 'In',
+                        'values': ['n1-standard-4']
+                    }]
+                }
+            }]
+        })

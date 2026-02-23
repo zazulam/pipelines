@@ -30,7 +30,8 @@ def add_toleration(
     key: Optional[str] = None,
     operator: Optional[Literal['Equal', 'Exists']] = None,
     value: Optional[str] = None,
-    effect: Optional[Literal['NoExecute', 'NoSchedule', 'PreferNoSchedule']] = None,
+    effect: Optional[Literal['NoExecute', 'NoSchedule',
+                             'PreferNoSchedule']] = None,
     toleration_seconds: Optional[int] = None,
 ):
     """Add a `toleration<https://kubernetes.io/docs/concepts/scheduling-
@@ -75,16 +76,16 @@ def add_toleration(
             value=value,
             effect=effect,
             toleration_seconds=toleration_seconds,
-        )
-    )
+        ))
     task.platform_config['kubernetes'] = json_format.MessageToDict(msg)
 
     return task
 
 
-def add_toleration_json(task: PipelineTask,
-                        toleration_json: Union[pipeline_channel.PipelineParameterChannel, list, dict]
-                        ):
+def add_toleration_json(
+    task: PipelineTask,
+    toleration_json: Union[pipeline_channel.PipelineParameterChannel, list,
+                           dict]):
     """Add a Pod Toleration in the form of a Pipeline Input JSON to a task.
 
     Args:
@@ -127,8 +128,7 @@ def add_toleration_json(task: PipelineTask,
         msg = common.get_existing_kubernetes_config_as_message(task)
         toleration = pb.Toleration()
         toleration.toleration_json.CopyFrom(
-            common.parse_k8s_parameter_input(toleration_json, task)
-        )
+            common.parse_k8s_parameter_input(toleration_json, task))
         msg.tolerations.append(toleration)
         task.platform_config['kubernetes'] = json_format.MessageToDict(msg)
     elif isinstance(toleration_json, list):
@@ -137,9 +137,11 @@ def add_toleration_json(task: PipelineTask,
     elif isinstance(toleration_json, dict):
         _add_dict_toleration(task, toleration_json)
     else:
-        raise ValueError('toleration_json must be a dict, list, or input parameter')
+        raise ValueError(
+            'toleration_json must be a dict, list, or input parameter')
 
     return task
+
 
 def _add_dict_toleration(task: PipelineTask, toleration: dict):
     add_toleration(

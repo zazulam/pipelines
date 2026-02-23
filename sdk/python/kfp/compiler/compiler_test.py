@@ -1288,10 +1288,6 @@ class TestCompilePipelineCaching(unittest.TestCase):
             self.assertEqual(caching_options, {})
 
 
-
-
-
-
 class TestWriteToFileTypes(parameterized.TestCase):
     pipeline_name = 'test-pipeline'
 

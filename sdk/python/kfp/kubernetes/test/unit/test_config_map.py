@@ -29,6 +29,7 @@ class TestUseConfigMapAsVolume:
                 config_map_name='cm-name',
                 mount_path='cmpath',
             )
+
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {
                 'kubernetes': {
@@ -195,8 +196,7 @@ class TestUseConfigMapAsVolume:
                         'executors': {
                             'exec-comp': {
                                 'configMapAsEnv': [{
-                                    'configMapName':
-                                        'cm-name1',
+                                    'configMapName': 'cm-name1',
                                     'configMapNameParameter': {
                                         'runtimeValue': {
                                             'constant': 'cm-name1'
@@ -280,10 +280,7 @@ class TestUseConfigMapAsVolume:
         def my_pipeline(cm_name_input_1: str):
             task = comp()
             kubernetes.use_config_map_as_volume(
-                task,
-                config_map_name=cm_name_input_1,
-                mount_path='cmpath'
-            )
+                task, config_map_name=cm_name_input_1, mount_path='cmpath')
 
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {
@@ -293,7 +290,8 @@ class TestUseConfigMapAsVolume:
                             'exec-comp': {
                                 'configMapAsVolume': [{
                                     'configMapNameParameter': {
-                                        'componentInputParameter': 'cm_name_input_1'
+                                        'componentInputParameter':
+                                            'cm_name_input_1'
                                     },
                                     'mountPath': 'cmpath',
                                     'optional': False,
@@ -312,22 +310,13 @@ class TestUseConfigMapAsVolume:
         def my_pipeline(cm_name_input_1: str, cm_name_input_2: str):
             t1 = comp()
             kubernetes.use_config_map_as_volume(
-                t1,
-                config_map_name=cm_name_input_1,
-                mount_path='cmpath'
-            )
+                t1, config_map_name=cm_name_input_1, mount_path='cmpath')
             kubernetes.use_config_map_as_volume(
-                t1,
-                config_map_name=cm_name_input_2,
-                mount_path='cmpath'
-            )
+                t1, config_map_name=cm_name_input_2, mount_path='cmpath')
 
             t2 = comp()
             kubernetes.use_config_map_as_volume(
-                t2,
-                config_map_name=cm_name_input_2,
-                mount_path='cmpath'
-            )
+                t2, config_map_name=cm_name_input_2, mount_path='cmpath')
 
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {
@@ -335,34 +324,31 @@ class TestUseConfigMapAsVolume:
                     'deploymentSpec': {
                         'executors': {
                             'exec-comp': {
-                                'configMapAsVolume': [
-                                    {
-                                        'configMapNameParameter': {
-                                            'componentInputParameter': 'cm_name_input_1'
-                                        },
-                                        'mountPath': 'cmpath',
-                                        'optional': False,
+                                'configMapAsVolume': [{
+                                    'configMapNameParameter': {
+                                        'componentInputParameter':
+                                            'cm_name_input_1'
                                     },
-                                    {
-                                        'configMapNameParameter': {
-                                            'componentInputParameter': 'cm_name_input_2'
-                                        },
-                                        'mountPath': 'cmpath',
-                                        'optional': False,
-                                    }
-
-                                ]
+                                    'mountPath': 'cmpath',
+                                    'optional': False,
+                                }, {
+                                    'configMapNameParameter': {
+                                        'componentInputParameter':
+                                            'cm_name_input_2'
+                                    },
+                                    'mountPath': 'cmpath',
+                                    'optional': False,
+                                }]
                             },
                             'exec-comp-2': {
-                                'configMapAsVolume': [
-                                    {
-                                        'configMapNameParameter': {
-                                            'componentInputParameter': 'cm_name_input_2'
-                                        },
-                                        'mountPath': 'cmpath',
-                                        'optional': False,
+                                'configMapAsVolume': [{
+                                    'configMapNameParameter': {
+                                        'componentInputParameter':
+                                            'cm_name_input_2'
                                     },
-                                ]
+                                    'mountPath': 'cmpath',
+                                    'optional': False,
+                                },]
                             }
                         }
                     }
@@ -378,10 +364,7 @@ class TestUseConfigMapAsVolume:
             t1 = comp()
             t2 = comp_with_output()
             kubernetes.use_config_map_as_volume(
-                t1,
-                config_map_name=t2.output,
-                mount_path='cmpath'
-            )
+                t1, config_map_name=t2.output, mount_path='cmpath')
 
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {
@@ -416,69 +399,57 @@ class TestUseConfigMapAsVolume:
             t3 = comp_with_output()
 
             kubernetes.use_config_map_as_volume(
-                t1,
-                config_map_name=t2.output,
-                mount_path='cmpath'
-            )
+                t1, config_map_name=t2.output, mount_path='cmpath')
             kubernetes.use_config_map_as_volume(
-                t1,
-                config_map_name=t3.output,
-                mount_path='cmpath'
-            )
+                t1, config_map_name=t3.output, mount_path='cmpath')
             t4 = comp()
             kubernetes.use_config_map_as_volume(
-                t4,
-                config_map_name=t2.output,
-                mount_path='cmpath'
-            )
+                t4, config_map_name=t2.output, mount_path='cmpath')
+
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {
                 'kubernetes': {
                     'deploymentSpec': {
                         'executors': {
                             'exec-comp': {
-                                'configMapAsVolume': [
-                                    {
-                                        'configMapNameParameter': {
-                                            'taskOutputParameter': {
-                                                'outputParameterKey': 'Output',
-                                                'producerTask': 'comp-with-output'
-                                            }
-                                        },
-                                        'mountPath': 'cmpath',
-                                        'optional': False,
+                                'configMapAsVolume': [{
+                                    'configMapNameParameter': {
+                                        'taskOutputParameter': {
+                                            'outputParameterKey': 'Output',
+                                            'producerTask': 'comp-with-output'
+                                        }
                                     },
-                                    {
-                                        'configMapNameParameter': {
-                                            'taskOutputParameter': {
-                                                'outputParameterKey': 'Output',
-                                                'producerTask': 'comp-with-output-2'
-                                            }
-                                        },
-                                        'mountPath': 'cmpath',
-                                        'optional': False,
-                                    }
-                                ]
+                                    'mountPath': 'cmpath',
+                                    'optional': False,
+                                }, {
+                                    'configMapNameParameter': {
+                                        'taskOutputParameter': {
+                                            'outputParameterKey': 'Output',
+                                            'producerTask': 'comp-with-output-2'
+                                        }
+                                    },
+                                    'mountPath': 'cmpath',
+                                    'optional': False,
+                                }]
                             },
                             'exec-comp-2': {
-                                'configMapAsVolume': [
-                                    {
-                                        'configMapNameParameter': {
-                                            'taskOutputParameter': {
-                                                'outputParameterKey': 'Output',
-                                                'producerTask': 'comp-with-output'
-                                            }
-                                        },
-                                        'mountPath': 'cmpath',
-                                        'optional': False,
-                                    }
-                                ]
+                                'configMapAsVolume': [{
+                                    'configMapNameParameter': {
+                                        'taskOutputParameter': {
+                                            'outputParameterKey': 'Output',
+                                            'producerTask': 'comp-with-output'
+                                        }
+                                    },
+                                    'mountPath': 'cmpath',
+                                    'optional': False,
+                                }]
                             }
                         }
                     }
                 }
             }
         }
+
 
 class TestUseConfigMapAsEnv:
 
@@ -503,8 +474,7 @@ class TestUseConfigMapAsEnv:
                         'executors': {
                             'exec-comp': {
                                 'configMapAsEnv': [{
-                                    'configMapName':
-                                        'cm-name',
+                                    'configMapName': 'cm-name',
                                     'configMapNameParameter': {
                                         'runtimeValue': {
                                             'constant': 'cm-name'
@@ -647,8 +617,7 @@ class TestUseConfigMapAsEnv:
                             'exec-comp': {
                                 'configMapAsEnv': [
                                     {
-                                        'configMapName':
-                                            'cm-name1',
+                                        'configMapName': 'cm-name1',
                                         'configMapNameParameter': {
                                             'runtimeValue': {
                                                 'constant': 'cm-name1'
@@ -705,8 +674,7 @@ class TestUseConfigMapAsEnv:
                         'executors': {
                             'exec-comp': {
                                 'configMapAsEnv': [{
-                                    'configMapName':
-                                        'cm-name1',
+                                    'configMapName': 'cm-name1',
                                     'configMapNameParameter': {
                                         'runtimeValue': {
                                             'constant': 'cm-name1'
@@ -757,17 +725,15 @@ class TestUseConfigMapAsEnv:
                     'deploymentSpec': {
                         'executors': {
                             'exec-comp': {
-                                'pvcMount': [
-                                    {
-                                        'constant': 'pvc-name',
-                                        'pvcNameParameter': {
-                                            'runtimeValue': {
-                                                'constant': 'pvc-name'
-                                            }
-                                        },
-                                        'mountPath': 'path'
+                                'pvcMount': [{
+                                    'constant': 'pvc-name',
+                                    'pvcNameParameter': {
+                                        'runtimeValue': {
+                                            'constant': 'pvc-name'
+                                        }
                                     },
-                                ],
+                                    'mountPath': 'path'
+                                },],
                                 'configMapAsEnv': [{
                                     'configMapName': 'cm-name',
                                     'configMapNameParameter': {
@@ -775,12 +741,10 @@ class TestUseConfigMapAsEnv:
                                             'constant': 'cm-name'
                                         }
                                     },
-                                    'keyToEnv': [
-                                        {
-                                            'configMapKey': 'foo',
-                                            'envVar': 'CM_VAR'
-                                        },
-                                    ],
+                                    'keyToEnv': [{
+                                        'configMapKey': 'foo',
+                                        'envVar': 'CM_VAR'
+                                    },],
                                     'optional': False
                                 }]
                             }
@@ -812,14 +776,13 @@ class TestUseConfigMapAsEnv:
                             'exec-comp': {
                                 'configMapAsEnv': [{
                                     'configMapNameParameter': {
-                                        'componentInputParameter': 'cm_name_input_1'
+                                        'componentInputParameter':
+                                            'cm_name_input_1'
                                     },
-                                    'keyToEnv': [
-                                        {
-                                            'configMapKey': 'foo',
-                                            'envVar': 'CM_VAR'
-                                        },
-                                    ],
+                                    'keyToEnv': [{
+                                        'configMapKey': 'foo',
+                                        'envVar': 'CM_VAR'
+                                    },],
                                     'optional': False
                                 }]
                             }
@@ -857,6 +820,7 @@ class TestUseConfigMapAsEnv:
                     'foo': 'CM_VAR',
                 },
             )
+
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {
                 'kubernetes': {
@@ -866,45 +830,40 @@ class TestUseConfigMapAsEnv:
                                 'configMapAsEnv': [
                                     {
                                         'configMapNameParameter': {
-                                            'componentInputParameter': 'cm_name_input_1'
+                                            'componentInputParameter':
+                                                'cm_name_input_1'
                                         },
-                                        'keyToEnv': [
-                                            {
-                                                'configMapKey': 'foo',
-                                                'envVar': 'CM_VAR'
-                                            },
-                                        ],
+                                        'keyToEnv': [{
+                                            'configMapKey': 'foo',
+                                            'envVar': 'CM_VAR'
+                                        },],
                                         'optional': False
                                     },
                                     {
                                         'configMapNameParameter': {
-                                            'componentInputParameter': 'cm_name_input_2'
+                                            'componentInputParameter':
+                                                'cm_name_input_2'
                                         },
-                                        'keyToEnv': [
-                                            {
-                                                'configMapKey': 'foo',
-                                                'envVar': 'CM_VAR'
-                                            },
-                                        ],
+                                        'keyToEnv': [{
+                                            'configMapKey': 'foo',
+                                            'envVar': 'CM_VAR'
+                                        },],
                                         'optional': False
                                     },
                                 ]
                             },
                             'exec-comp-2': {
-                                'configMapAsEnv': [
-                                    {
-                                        'configMapNameParameter': {
-                                            'componentInputParameter': 'cm_name_input_2'
-                                        },
-                                        'keyToEnv': [
-                                            {
-                                                'configMapKey': 'foo',
-                                                'envVar': 'CM_VAR'
-                                            },
-                                        ],
-                                        'optional': False
+                                'configMapAsEnv': [{
+                                    'configMapNameParameter': {
+                                        'componentInputParameter':
+                                            'cm_name_input_2'
                                     },
-                                ]
+                                    'keyToEnv': [{
+                                        'configMapKey': 'foo',
+                                        'envVar': 'CM_VAR'
+                                    },],
+                                    'optional': False
+                                },]
                             }
                         }
                     }
@@ -926,6 +885,7 @@ class TestUseConfigMapAsEnv:
                     'foo': 'CM_VAR',
                 },
             )
+
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {
                 'kubernetes': {
@@ -939,12 +899,10 @@ class TestUseConfigMapAsEnv:
                                             'producerTask': 'comp-with-output'
                                         }
                                     },
-                                    'keyToEnv': [
-                                        {
-                                            'configMapKey': 'foo',
-                                            'envVar': 'CM_VAR'
-                                        },
-                                    ],
+                                    'keyToEnv': [{
+                                        'configMapKey': 'foo',
+                                        'envVar': 'CM_VAR'
+                                    },],
                                     'optional': False
                                 }]
                             }
@@ -992,57 +950,46 @@ class TestUseConfigMapAsEnv:
                     'deploymentSpec': {
                         'executors': {
                             'exec-comp': {
-                                'configMapAsEnv': [
-                                    {
-                                        'configMapNameParameter': {
-                                            'taskOutputParameter': {
-                                                'outputParameterKey': 'Output',
-                                                'producerTask': 'comp-with-output'
-                                            }
-                                        },
-                                        'keyToEnv': [
-                                            {
-                                                'configMapKey': 'foo',
-                                                'envVar': 'CM_VAR'
-                                            },
-                                        ],
-                                        'optional': False
+                                'configMapAsEnv': [{
+                                    'configMapNameParameter': {
+                                        'taskOutputParameter': {
+                                            'outputParameterKey': 'Output',
+                                            'producerTask': 'comp-with-output'
+                                        }
                                     },
-                                    {
-                                        'configMapNameParameter': {
-                                            'taskOutputParameter': {
-                                                'outputParameterKey': 'Output',
-                                                'producerTask': 'comp-with-output-2'
-                                            }
-                                        },
-                                        'keyToEnv': [
-                                            {
-                                                'configMapKey': 'foo',
-                                                'envVar': 'CM_VAR'
-                                            },
-                                        ],
-                                        'optional': False
-                                    }
-                                ]
+                                    'keyToEnv': [{
+                                        'configMapKey': 'foo',
+                                        'envVar': 'CM_VAR'
+                                    },],
+                                    'optional': False
+                                }, {
+                                    'configMapNameParameter': {
+                                        'taskOutputParameter': {
+                                            'outputParameterKey': 'Output',
+                                            'producerTask': 'comp-with-output-2'
+                                        }
+                                    },
+                                    'keyToEnv': [{
+                                        'configMapKey': 'foo',
+                                        'envVar': 'CM_VAR'
+                                    },],
+                                    'optional': False
+                                }]
                             },
                             'exec-comp-2': {
-                                'configMapAsEnv': [
-                                    {
-                                        'configMapNameParameter': {
-                                            'taskOutputParameter': {
-                                                'outputParameterKey': 'Output',
-                                                'producerTask': 'comp-with-output'
-                                            }
-                                        },
-                                        'keyToEnv': [
-                                            {
-                                                'configMapKey': 'foo',
-                                                'envVar': 'CM_VAR'
-                                            },
-                                        ],
-                                        'optional': False
-                                    }
-                                ]
+                                'configMapAsEnv': [{
+                                    'configMapNameParameter': {
+                                        'taskOutputParameter': {
+                                            'outputParameterKey': 'Output',
+                                            'producerTask': 'comp-with-output'
+                                        }
+                                    },
+                                    'keyToEnv': [{
+                                        'configMapKey': 'foo',
+                                        'envVar': 'CM_VAR'
+                                    },],
+                                    'optional': False
+                                }]
                             }
                         }
                     }
@@ -1050,9 +997,11 @@ class TestUseConfigMapAsEnv:
             }
         }
 
+
 @dsl.component
 def comp():
     pass
+
 
 @dsl.component()
 def comp_with_output() -> str:

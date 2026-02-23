@@ -27,8 +27,7 @@ def my_pipeline():
     kubernetes.use_field_path_as_env(
         task,
         env_name='KFP_RUN_NAME',
-        field_path="metadata.annotations['pipelines.kubeflow.org/run_name']"
-    )
+        field_path="metadata.annotations['pipelines.kubeflow.org/run_name']")
 
 
 if __name__ == '__main__':

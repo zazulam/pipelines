@@ -119,10 +119,12 @@ def run_commands_and_args(
         # prefer the less invasive approach of installing from a PR
 
         overriden_kfp_package_path_commands = list()
+        kfp_package_path = os.environ.get("KFP_PACKAGE_PATH")
         for cmd in command_and_args:
-            if re.search("kfp==[0-9].[0-9]+.[0-9]+", cmd) is not None:
-                cmd = re.sub("kfp==[0-9].[0-9]+.[0-9]+",
-                             f"kfp=={kfp.__version__}", cmd)
+            if kfp_package_path is not None:
+                cmd = re.sub(r"'kfp==[^']+'", f"'{kfp_package_path}'", cmd)
+            else:
+                cmd = re.sub(r"'kfp==[^']+'", "", cmd)
             overriden_kfp_package_path_commands.append(cmd)
         command_and_args = overriden_kfp_package_path_commands
         executor_input_json = json.dumps(config.executor_input).replace(

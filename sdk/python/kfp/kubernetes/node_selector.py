@@ -20,9 +20,9 @@ from kfp.kubernetes import common
 
 
 def add_node_selector(
-        task: PipelineTask,
-        label_key: str,
-        label_value: str,
+    task: PipelineTask,
+    label_key: str,
+    label_value: str,
 ) -> PipelineTask:
     """Add a constraint to the task Pod's `nodeSelector.
 
@@ -49,8 +49,8 @@ def add_node_selector(
 
 
 def add_node_selector_json(
-        task: PipelineTask,
-        node_selector_json: Union[pipeline_channel.PipelineParameterChannel, dict],
+    task: PipelineTask,
+    node_selector_json: Union[pipeline_channel.PipelineParameterChannel, dict],
 ) -> PipelineTask:
     """Add a pod nodeSelector constraint to the task Pod's `nodeSelector'.
 
@@ -67,7 +67,8 @@ def add_node_selector_json(
 
     msg = common.get_existing_kubernetes_config_as_message(task)
 
-    input_param_spec = common.parse_k8s_parameter_input(node_selector_json, task)
+    input_param_spec = common.parse_k8s_parameter_input(node_selector_json,
+                                                        task)
     msg.node_selector.node_selector_json.CopyFrom(input_param_spec)
 
     task.platform_config['kubernetes'] = json_format.MessageToDict(msg)

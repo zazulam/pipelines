@@ -113,7 +113,11 @@ class TestNodeSelector:
                                 },
                                 'secretAsVolume': [{
                                     'secretName': 'my-secret',
-                                    'secretNameParameter': {'runtimeValue': {'constant': 'my-secret'}},
+                                    'secretNameParameter': {
+                                        'runtimeValue': {
+                                            'constant': 'my-secret'
+                                        }
+                                    },
                                     'mountPath': '/mnt/my_vol',
                                     'optional': False
                                 }]
@@ -123,6 +127,7 @@ class TestNodeSelector:
                 }
             }
         }
+
 
 class TestNodeSelectorJSON:
 
@@ -145,7 +150,8 @@ class TestNodeSelectorJSON:
                             'exec-comp': {
                                 'nodeSelector': {
                                     'nodeSelectorJson': {
-                                        'componentInputParameter': 'selector_input'
+                                        'componentInputParameter':
+                                            'selector_input'
                                     },
                                 }
                             }
@@ -187,14 +193,16 @@ class TestNodeSelectorJSON:
                             'exec-comp': {
                                 'nodeSelector': {
                                     'nodeSelectorJson': {
-                                        'componentInputParameter': 'selector_input_1'
+                                        'componentInputParameter':
+                                            'selector_input_1'
                                     },
                                 }
                             },
                             'exec-comp-2': {
                                 'nodeSelector': {
                                     'nodeSelectorJson': {
-                                        'componentInputParameter': 'selector_input_2'
+                                        'componentInputParameter':
+                                            'selector_input_2'
                                     },
                                 }
                             }
@@ -260,6 +268,7 @@ class TestNodeSelectorJSON:
                 t3,
                 node_selector_json=t5.output,
             )
+
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {
                 'kubernetes': {
@@ -291,9 +300,11 @@ class TestNodeSelectorJSON:
             }
         }
 
+
 @dsl.component
 def comp():
     pass
+
 
 @dsl.component()
 def comp_with_output() -> str:

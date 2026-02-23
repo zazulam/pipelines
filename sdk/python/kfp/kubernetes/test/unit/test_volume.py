@@ -39,7 +39,11 @@ class TestMountPVC:
                             'exec-comp': {
                                 'pvcMount': [{
                                     'constant': 'pvc-name',
-                                    'pvcNameParameter': {'runtimeValue': {'constant': 'pvc-name'}},
+                                    'pvcNameParameter': {
+                                        'runtimeValue': {
+                                            'constant': 'pvc-name'
+                                        }
+                                    },
                                     'mountPath': 'path'
                                 }]
                             }
@@ -74,12 +78,20 @@ class TestMountPVC:
                                 'pvcMount': [
                                     {
                                         'constant': 'pvc-name',
-                                        'pvcNameParameter': {'runtimeValue': {'constant': 'pvc-name'}},
+                                        'pvcNameParameter': {
+                                            'runtimeValue': {
+                                                'constant': 'pvc-name'
+                                            }
+                                        },
                                         'mountPath': 'path1'
                                     },
                                     {
                                         'constant': 'other-pvc-name',
-                                        'pvcNameParameter': {'runtimeValue': {'constant': 'other-pvc-name'}},
+                                        'pvcNameParameter': {
+                                            'runtimeValue': {
+                                                'constant': 'other-pvc-name'
+                                            }
+                                        },
                                         'mountPath': 'path2'
                                     },
                                 ]
@@ -91,6 +103,7 @@ class TestMountPVC:
         }
 
     def test_mount_with_sub_path(self):
+
         @dsl.pipeline
         def my_pipeline():
             task = comp()
@@ -109,7 +122,11 @@ class TestMountPVC:
                             'exec-comp': {
                                 'pvcMount': [{
                                     'constant': 'pvc-name',
-                                    'pvcNameParameter': {'runtimeValue': {'constant': 'pvc-name'}},
+                                    'pvcNameParameter': {
+                                        'runtimeValue': {
+                                            'constant': 'pvc-name'
+                                        }
+                                    },
                                     'mountPath': '/data',
                                     'subPath': 'models'
                                 }]
@@ -121,6 +138,7 @@ class TestMountPVC:
         }
 
     def test_mount_with_empty_sub_path(self):
+
         @dsl.pipeline
         def my_pipeline():
             task = comp()
@@ -139,7 +157,11 @@ class TestMountPVC:
                             'exec-comp': {
                                 'pvcMount': [{
                                     'constant': 'pvc-name',
-                                    'pvcNameParameter': {'runtimeValue': {'constant': 'pvc-name'}},
+                                    'pvcNameParameter': {
+                                        'runtimeValue': {
+                                            'constant': 'pvc-name'
+                                        }
+                                    },
                                     'mountPath': '/data'
                                 }]
                             }
@@ -173,12 +195,20 @@ class TestMountPVC:
                             'exec-comp': {
                                 'pvcMount': [{
                                     'constant': 'pvc-name',
-                                    'pvcNameParameter': {'runtimeValue': {'constant': 'pvc-name'}},
+                                    'pvcNameParameter': {
+                                        'runtimeValue': {
+                                            'constant': 'pvc-name'
+                                        }
+                                    },
                                     'mountPath': 'path'
                                 }],
                                 'secretAsEnv': [{
                                     'secretName': 'secret-name',
-                                    'secretNameParameter': {'runtimeValue': {'constant': 'secret-name'}},
+                                    'secretNameParameter': {
+                                        'runtimeValue': {
+                                            'constant': 'secret-name'
+                                        }
+                                    },
                                     'keyToEnv': [{
                                         'secretKey': 'password',
                                         'envVar': 'SECRET_VAR'
@@ -216,12 +246,20 @@ class TestMountPVC:
                             'exec-comp': {
                                 'pvcMount': [{
                                     'constant': 'pvc-name',
-                                    'pvcNameParameter': {'runtimeValue': {'constant': 'pvc-name'}},
+                                    'pvcNameParameter': {
+                                        'runtimeValue': {
+                                            'constant': 'pvc-name'
+                                        }
+                                    },
                                     'mountPath': 'path'
                                 }],
                                 'secretAsVolume': [{
                                     'secretName': 'secret-name',
-                                    'secretNameParameter': {'runtimeValue': {'constant': 'secret-name'}},
+                                    'secretNameParameter': {
+                                        'runtimeValue': {
+                                            'constant': 'secret-name'
+                                        }
+                                    },
                                     'mountPath': 'secretpath',
                                     'optional': False
                                 }]
@@ -241,7 +279,7 @@ class TestMountPVC:
         with pytest.raises(
                 ValueError,
                 match=r"Argument for 'input_param' must be an instance of str, dict, or PipelineChannel. "
-                      r"Got unknown input type: <class 'int'>.",
+                r"Got unknown input type: <class 'int'>.",
         ):
 
             @dsl.pipeline
@@ -273,7 +311,8 @@ class TestMountPVC:
                                 'pvcMount': [{
                                     'componentInputParameter': 'pvc_name_input',
                                     'pvcNameParameter': {
-                                        'componentInputParameter': 'pvc_name_input'
+                                        'componentInputParameter':
+                                            'pvc_name_input'
                                     },
                                     'mountPath': 'path'
                                 }]
@@ -313,31 +352,38 @@ class TestMountPVC:
                     'deploymentSpec': {
                         'executors': {
                             'exec-comp': {
-                                'pvcMount': [
-                                    {
-                                        'componentInputParameter': 'pvc_name_input_1',
-                                        'pvcNameParameter': {
-                                            'componentInputParameter': 'pvc_name_input_1'
-                                        },
-                                        'mountPath': 'path'
+                                'pvcMount': [{
+                                    'componentInputParameter':
+                                        'pvc_name_input_1',
+                                    'pvcNameParameter': {
+                                        'componentInputParameter':
+                                            'pvc_name_input_1'
                                     },
-                                ]
+                                    'mountPath':
+                                        'path'
+                                },]
                             },
                             'exec-comp-2': {
                                 'pvcMount': [
                                     {
-                                        'componentInputParameter': 'pvc_name_input_1',
+                                        'componentInputParameter':
+                                            'pvc_name_input_1',
                                         'pvcNameParameter': {
-                                            'componentInputParameter': 'pvc_name_input_1'
+                                            'componentInputParameter':
+                                                'pvc_name_input_1'
                                         },
-                                        'mountPath': 'path'
+                                        'mountPath':
+                                            'path'
                                     },
                                     {
-                                        'componentInputParameter': 'pvc_name_input_2',
+                                        'componentInputParameter':
+                                            'pvc_name_input_2',
                                         'pvcNameParameter': {
-                                            'componentInputParameter': 'pvc_name_input_2'
+                                            'componentInputParameter':
+                                                'pvc_name_input_2'
                                         },
-                                        'mountPath': 'path'
+                                        'mountPath':
+                                            'path'
                                     },
                                 ]
                             }
@@ -418,21 +464,19 @@ class TestMountPVC:
                     'deploymentSpec': {
                         'executors': {
                             'exec-comp': {
-                                'pvcMount': [
-                                    {
+                                'pvcMount': [{
+                                    'taskOutputParameter': {
+                                        'outputParameterKey': 'Output',
+                                        'producerTask': 'comp-with-output'
+                                    },
+                                    'pvcNameParameter': {
                                         'taskOutputParameter': {
                                             'outputParameterKey': 'Output',
                                             'producerTask': 'comp-with-output'
-                                        },
-                                        'pvcNameParameter': {
-                                            'taskOutputParameter': {
-                                                'outputParameterKey': 'Output',
-                                                'producerTask': 'comp-with-output'
-                                            }
-                                        },
-                                        'mountPath': 'path1'
+                                        }
                                     },
-                                ]
+                                    'mountPath': 'path1'
+                                },]
                             },
                             'exec-comp-2': {
                                 'pvcMount': [
@@ -443,8 +487,10 @@ class TestMountPVC:
                                         },
                                         'pvcNameParameter': {
                                             'taskOutputParameter': {
-                                                'outputParameterKey': 'Output',
-                                                'producerTask': 'comp-with-output-2'
+                                                'outputParameterKey':
+                                                    'Output',
+                                                'producerTask':
+                                                    'comp-with-output-2'
                                             }
                                         },
                                         'mountPath': 'path2'
@@ -456,8 +502,10 @@ class TestMountPVC:
                                         },
                                         'pvcNameParameter': {
                                             'taskOutputParameter': {
-                                                'outputParameterKey': 'Output',
-                                                'producerTask': 'comp-with-output-3'
+                                                'outputParameterKey':
+                                                    'Output',
+                                                'producerTask':
+                                                    'comp-with-output-3'
                                             }
                                         },
                                         'mountPath': 'path3'
@@ -469,6 +517,7 @@ class TestMountPVC:
                 }
             }
         }
+
 
 class TestGenericEphemeralVolume:
 
@@ -529,8 +578,7 @@ class TestGenericEphemeralVolume:
                 },
                 annotations={
                     'annotation1': 'a1',
-                }
-            )
+                })
 
         assert json_format.MessageToDict(my_pipeline.platform_spec) == {
             'platforms': {
@@ -553,8 +601,12 @@ class TestGenericEphemeralVolume:
                                         'size': '10Ti',
                                         'storageClassName': 'gp2',
                                         'metadata': {
-                                            'labels': {'label1': 'l1'},
-                                            'annotations': {'annotation1': 'a1'},
+                                            'labels': {
+                                                'label1': 'l1'
+                                            },
+                                            'annotations': {
+                                                'annotation1': 'a1'
+                                            },
                                         },
                                     },
                                 ]
@@ -569,6 +621,7 @@ class TestGenericEphemeralVolume:
 @dsl.component
 def comp():
     pass
+
 
 @dsl.component()
 def comp_with_output() -> str:
