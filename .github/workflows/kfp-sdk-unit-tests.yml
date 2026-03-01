@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.13']
+        python-version: ['3.10', '3.13']
 
     steps:
     - name: Checkout code
@@ -33,11 +33,11 @@ jobs:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
 
-    - name: Install protobuf dependencies & kfp-pipeline-spec
+    - name: Generate proto files
       id: install-protobuf-deps
       uses: ./.github/actions/protobuf
 
-    - name: Install kfp & kfp-kubernetes from source
+    - name: Build & install kfp
       id: install-kfp-k8s-deps
       uses: ./.github/actions/kfp-k8s
 

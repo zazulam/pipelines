@@ -19,7 +19,6 @@ whereas these tests focus on how the task dispatcher should behave,
 irrespective of the runner. While there will inevitably some overlap, we
 should seek to minimize it.
 """
-import functools
 import io
 import os
 import re
@@ -46,22 +45,7 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def set_packages_for_test_classes(monkeypatch, request):
-    if request.cls.__name__ in {
-            'TestLocalExecutionValidation', 'TestSupportOfComponentTypes',
-            'TestSupportOfComponentTypes', 'TestExceptionHandlingAndLogging',
-            'TestPipelineRootPaths'
-    }:
-        root_dir = os.path.dirname(
-            os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
-        kfp_pipeline_spec_path = os.path.join(root_dir, 'api', 'v2alpha1',
-                                              'python')
-        original_dsl_component = dsl.component
-        monkeypatch.setattr(
-            dsl, 'component',
-            functools.partial(
-                original_dsl_component,
-                packages_to_install=[kfp_pipeline_spec_path]))
+    pass
 
 
 class TestLocalExecutionValidation(

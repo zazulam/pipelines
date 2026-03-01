@@ -24,17 +24,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: 3.9
+          python-version: '3.10'
           cache: 'pip'
 
-      - name: Install protobuf dependencies
-        uses: ./.github/actions/protobuf
-
-      - name: Install protobuf dependencies & kfp-pipeline-spec
+      - name: Generate proto files
         id: install-protobuf-deps
         uses: ./.github/actions/protobuf
 
-      - name: Install kfp & kfp-kubernetes from source
+      - name: Build & install kfp
         id: install-kfp-k8s-deps
         uses: ./.github/actions/kfp-k8s
 

@@ -24,11 +24,11 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
-        python-version: '3.9'
+        python-version: '3.10'
         cache: 'pip'
 
     - name: Install dependencies
-      run: pip install yapf
+      run: pip install $(grep 'yapf==' sdk/python/requirements-dev.txt)
 
     - name: Run YAPF SDK Tests
       run: ./test/presubmit-yapf-sdk.sh
