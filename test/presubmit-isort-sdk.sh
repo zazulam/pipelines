@@ -18,6 +18,7 @@ source_root=$(pwd)
 python3 -m pip install --upgrade pip
 python3 -m pip install $(grep 'isort==' sdk/python/requirements-dev.txt)
 python3 -m pip install $(grep 'pycln==' sdk/python/requirements-dev.txt)
+python3 -m pip install "${source_root}/sdk/python[all]"
 
 pycln --check "${source_root}/sdk/python"
 isort --check --profile google "${source_root}/sdk/python"

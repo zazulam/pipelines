@@ -35,7 +35,7 @@ from kfp.client import set_volume_credentials
 from kfp.client.token_credentials_base import TokenCredentialsBase
 from kfp.dsl import base_component
 from kfp.pipeline_spec import pipeline_spec_pb2
-import kfp_server_api
+import kfp.server_api as kfp_server_api
 import yaml
 
 # Operators on scalar values. Only applies to one of |int_value|,

@@ -29,7 +29,7 @@ from kfp.compiler import Compiler
 from kfp.dsl import component
 from kfp.dsl import pipeline
 from kfp.pipeline_spec import pipeline_spec_pb2
-import kfp_server_api
+import kfp.server_api as kfp_server_api
 import yaml
 
 
@@ -303,7 +303,7 @@ class TestClient(parameterized.TestCase):
             experiment_name='foo', namespace='ns1')
         mock_get_url_prefix.assert_called_once()
 
-    @patch('kfp_server_api.V2beta1Experiment')
+    @patch('kfp.server_api.V2beta1Experiment')
     @patch(
         'kfp.Client.get_experiment',
         side_effect=ValueError('No experiment is found with name'))
@@ -379,7 +379,7 @@ class TestClient(parameterized.TestCase):
             mock_list_experiments.assert_called_once()
             mock_get_user_namespace.assert_called_once()
 
-    @patch('kfp_server_api.HealthzServiceApi.healthz_service_get_healthz')
+    @patch('kfp.server_api.HealthzServiceApi.healthz_service_get_healthz')
     def test_get_kfp_healthz(self, mock_get_kfp_healthz):
         mock_get_kfp_healthz.return_value = json.dumps([{'foo': 'bar'}])
         response = self.client.get_kfp_healthz()
@@ -387,7 +387,7 @@ class TestClient(parameterized.TestCase):
         assert (response == mock_get_kfp_healthz.return_value)
 
     @patch(
-        'kfp_server_api.HealthzServiceApi.healthz_service_get_healthz',
+        'kfp.server_api.HealthzServiceApi.healthz_service_get_healthz',
         side_effect=kfp_server_api.ApiException)
     def test_get_kfp_healthz_should_raise_error(self, mock_get_kfp_healthz):
         with self.assertRaises(TimeoutError):

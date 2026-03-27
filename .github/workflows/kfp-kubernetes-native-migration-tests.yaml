@@ -37,7 +37,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.9"
+          python-version: "3.10"
           cache: 'pip'
 
       - name: Create KFP cluster
@@ -56,12 +56,12 @@ jobs:
           image_tag: ${{ needs.build.outputs.IMAGE_TAG }}
           image_registry: ${{ needs.build.outputs.IMAGE_REGISTRY }}
 
-      - name: Install protobuf dependencies & kfp-pipeline-spec
+      - name: Generate proto files
         if: ${{ steps.deploy.outcome == 'success' }}
         id: install-protobuf-deps
         uses: ./.github/actions/protobuf
 
-      - name: Install kfp & kfp-kubernetes from source
+      - name: Build & install kfp
         if: ${{ steps.install-protobuf-deps.outcome == 'success' }}
         id: install-kfp-k8s-deps
         uses: ./.github/actions/kfp-k8s

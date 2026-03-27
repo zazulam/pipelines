@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# `kfp` is a namespace package.
-# https://packaging.python.org/guides/packaging-namespace-packages/#pkgutil-style-namespace-packages
-__path__ = __import__('pkgutil').extend_path(__path__, __name__)
-
 try:
     from .version import __version__
 except ImportError:
@@ -24,9 +20,9 @@ except ImportError:
 import sys
 import warnings
 
-if sys.version_info < (3, 9):
+if sys.version_info < (3, 10):
     warnings.warn(
-        ('KFP will drop support for Python 3.9 on October 1, 2026. To use new versions of the KFP SDK after that date, you will need to upgrade to Python >= 3.10. See https://devguide.python.org/versions/ for more details.'
+        ('KFP v3 requires Python >= 3.10. Please upgrade your Python version. See https://devguide.python.org/versions/ for more details.'
         ),
         FutureWarning,
         stacklevel=2,
@@ -42,4 +38,8 @@ if os.environ.get('_KFP_RUNTIME', 'false') != 'true':
     # related to namespace packaging issue
     from kfp import components  # noqa: keep unused import
     from kfp import dsl  # noqa: keep unused import
-    from kfp.client import Client  # noqa: keep unused import
+    try:
+        from kfp.client import Client  # noqa: keep unused import
+    except ImportError:
+        # Client requires the kubernetes package (pip install kfp[kubernetes])
+        pass

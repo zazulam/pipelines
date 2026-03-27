@@ -19,7 +19,7 @@ import json
 from typing import Any, Dict
 
 import click
-import kfp_server_api
+import kfp.server_api as kfp_server_api
 import tabulate
 
 KFP_TABLE_FORMAT = 'custom-simple'
