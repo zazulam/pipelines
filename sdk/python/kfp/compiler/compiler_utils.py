@@ -477,8 +477,6 @@ def get_outputs_for_all_groups(
             # TODO: migrate Collected to OneOfMixin style implementation,
             # then simplify this logic to align with OneOfMixin logic
             if isinstance(channel, dsl.Collected):
-                if channel.is_static:
-                    continue
                 producer_task = pipeline.tasks[channel.task_name]
                 consumer_task = task
 
@@ -579,10 +577,6 @@ def get_outputs_for_all_groups(
     # TODO: consider migrating dsl.Collected returns to pattern used by dsl.OneOf, where the OneOf constructor returns a parameter/artifact channel, which fits in more cleanly into the existing compiler abstractions
     for output_key, channel in pipeline_outputs_dict.items():
         if isinstance(channel, for_loop.Collected):
-            if channel.is_static:
-                raise ValueError(
-                    f'Statically collected outputs cannot currently be returned as pipeline outputs. Pass dsl.{for_loop.Collected.__name__} to a component input instead.'
-                )
             surfaced_output_name = additional_input_name_for_pipeline_channel(
                 channel)
             upstream_groups = task_name_to_parent_groups[channel.task_name][1:]

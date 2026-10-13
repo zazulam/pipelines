@@ -211,7 +211,7 @@ describe('StaticNodeDetailsV2', () => {
     screen.getByText('Artifact Type');
     screen.getByText('system.Model (version: 0.0.1)');
   });
-  it('Renders ordered static collection bindings with duplicates and selectors', async () => {
+  it('Renders ordered static list bindings with duplicates and selectors', async () => {
     const templateString = `
 pipelineInfo:
   name: static-collections
@@ -277,7 +277,7 @@ deploymentSpec:
       </CommonTestWrapper>,
     );
 
-    screen.getByText('Static Collection Bindings');
+    screen.getByText('Static List Bindings');
     expect(screen.getAllByText('models')).toHaveLength(2);
     expect(screen.getAllByText('scores')).toHaveLength(2);
 

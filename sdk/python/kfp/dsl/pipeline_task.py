@@ -44,6 +44,128 @@ class TaskState(enum.Enum):
     FINAL = 'FINAL'
 
 
+def _is_list_valued_channel(channel: pipeline_channel.PipelineChannel) -> bool:
+    if isinstance(channel, pipeline_channel.PipelineArtifactChannel):
+        return channel.is_artifact_list
+    return (isinstance(channel, pipeline_channel.PipelineParameterChannel) and
+            type_utils.get_parameter_type(
+                channel.channel_type) == type_utils.LIST)
+
+
+def _validate_artifact_channel_list(
+    channels: List[pipeline_channel.PipelineChannel],
+    input_spec: structures.InputSpec,
+    error_message_prefix: str,
+) -> None:
+    if not input_spec.is_artifact_list:
+        raise TypeError(
+            f'{error_message_prefix}Artifact channel lists require an artifact-list input.'
+        )
+    scalar_input_spec = structures.InputSpec(type=input_spec.type)
+    for channel in channels:
+        type_utils.verify_type_compatibility(
+            given_value=channel,
+            expected_spec=scalar_input_spec,
+            error_message_prefix=error_message_prefix,
+        )
+
+
+def _validate_parameter_channel_list(
+    channels: List[pipeline_channel.PipelineChannel],
+    input_spec: structures.InputSpec,
+    error_message_prefix: str,
+) -> None:
+    from kfp.dsl import for_loop
+    if type_utils.get_parameter_type(input_spec.type) != type_utils.LIST:
+        raise TypeError(
+            f'{error_message_prefix}Parameter channel lists require a LIST input.'
+        )
+    item_type = for_loop._get_loop_item_type(input_spec.type)
+    if item_type is not None:
+        scalar_input_spec = structures.InputSpec(
+            type=type_utils.IR_TYPE_TO_IN_MEMORY_SPEC_TYPE[
+                type_utils.get_parameter_type_name(item_type)])
+        for channel in channels:
+            type_utils.verify_type_compatibility(
+                given_value=channel,
+                expected_spec=scalar_input_spec,
+                error_message_prefix=error_message_prefix,
+            )
+        return
+
+    expected_channel_type = type_utils.get_parameter_type(
+        channels[0].channel_type)
+    for index, channel in enumerate(channels[1:], start=1):
+        channel_type = type_utils.get_parameter_type(channel.channel_type)
+        if channel_type != expected_channel_type:
+            raise TypeError(
+                f'{error_message_prefix}Parameter channels must have the same type. Got {channels[0].channel_type!r} at index 0 and {channel.channel_type!r} at index {index}.'
+            )
+
+
+def _validate_channel_list_argument(
+    argument_value: Any,
+    input_spec: structures.InputSpec,
+    error_message_prefix: str,
+) -> bool:
+    """Validates a homogeneous list of scalar pipeline channels.
+
+    Returns:
+        True when the argument is a channel list and False for ordinary values.
+    """
+    if not isinstance(argument_value, list) or not argument_value:
+        return False
+
+    channels = [
+        value for value in argument_value
+        if isinstance(value, pipeline_channel.PipelineChannel)
+    ]
+    if not channels:
+        return False
+    if len(channels) != len(argument_value):
+        raise TypeError(
+            f'{error_message_prefix}Lists cannot mix pipeline channels with ordinary values.'
+        )
+
+    from kfp.dsl import for_loop
+    for index, channel in enumerate(channels):
+        if isinstance(channel,
+                      (for_loop.Collected, pipeline_channel.OneOfMixin)):
+            raise TypeError(
+                f'{error_message_prefix}Channel list item {index} cannot be {type(channel).__name__}.'
+            )
+        if _is_list_valued_channel(channel):
+            raise TypeError(
+                f'{error_message_prefix}Channel list item {index} must be scalar.'
+            )
+
+    all_artifacts = all(
+        isinstance(channel, pipeline_channel.PipelineArtifactChannel)
+        for channel in channels)
+    all_parameters = all(
+        isinstance(channel, pipeline_channel.PipelineParameterChannel)
+        for channel in channels)
+    if not all_artifacts and not all_parameters:
+        raise TypeError(
+            f'{error_message_prefix}Lists cannot mix parameter and artifact channels.'
+        )
+
+    if all_artifacts:
+        _validate_artifact_channel_list(
+            channels=channels,
+            input_spec=input_spec,
+            error_message_prefix=error_message_prefix,
+        )
+        return True
+
+    _validate_parameter_channel_list(
+        channels=channels,
+        input_spec=input_spec,
+        error_message_prefix=error_message_prefix,
+    )
+    return True
+
+
 def block_if_final(custom_message: Optional[str] = None):
 
     def actual_decorator(method):
@@ -152,13 +274,18 @@ class PipelineTask:
 
             input_spec = component_spec.inputs[input_name]
 
-            type_utils.verify_type_compatibility(
-                given_value=argument_value,
-                expected_spec=input_spec,
-                error_message_prefix=(
-                    f'Incompatible argument passed to the input '
-                    f'{input_name!r} of component {component_spec.name!r}: '),
-            )
+            error_message_prefix = (
+                f'Incompatible argument passed to the input '
+                f'{input_name!r} of component {component_spec.name!r}: ')
+            if not _validate_channel_list_argument(
+                    argument_value=argument_value,
+                    input_spec=input_spec,
+                    error_message_prefix=error_message_prefix):
+                type_utils.verify_type_compatibility(
+                    given_value=argument_value,
+                    expected_spec=input_spec,
+                    error_message_prefix=error_message_prefix,
+                )
 
         self.component_spec = component_spec
 
@@ -211,18 +338,13 @@ class PipelineTask:
 
         self._inputs = args
 
-        from kfp.dsl import for_loop
-        self._channel_inputs = []
-        for value in args.values():
-            if isinstance(value, for_loop.Collected) and value.is_static:
-                self._channel_inputs.extend(value.outputs)
-            elif isinstance(value, pipeline_channel.PipelineChannel):
-                self._channel_inputs.append(value)
-        self._channel_inputs += pipeline_channel.extract_pipeline_channels_from_any(
-            [
-                value for _, value in args.items()
-                if not isinstance(value, pipeline_channel.PipelineChannel)
-            ])
+        self._channel_inputs = [
+            value for _, value in args.items()
+            if isinstance(value, pipeline_channel.PipelineChannel)
+        ] + pipeline_channel.extract_pipeline_channels_from_any([
+            value for _, value in args.items()
+            if not isinstance(value, pipeline_channel.PipelineChannel)
+        ])
 
         if execute_locally:
             self._execute_locally(args=args)

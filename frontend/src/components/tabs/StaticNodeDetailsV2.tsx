@@ -155,7 +155,7 @@ function TaskNodeDetail({
       )}
       {staticCollectionBindings.length > 0 && (
         <div>
-          <DetailsTable title='Static Collection Bindings' fields={staticCollectionBindings} />
+          <DetailsTable title='Static List Bindings' fields={staticCollectionBindings} />
         </div>
       )}
       {image && (

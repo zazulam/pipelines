@@ -157,7 +157,7 @@ def _build_artifact_list_item_spec(
     parent_component_inputs: pipeline_spec_pb2.ComponentInputsSpec,
     tasks_in_current_dag: List[str],
 ) -> pipeline_spec_pb2.TaskInputsSpec.InputArtifactSpec.ArtifactListItemSpec:
-    """Builds a scalar artifact reference within a static collection."""
+    """Builds a scalar artifact reference within a static list binding."""
     scalar_spec = _build_artifact_input_spec(
         input_value=input_value,
         parent_component_inputs=parent_component_inputs,
@@ -179,7 +179,7 @@ def _build_parameter_list_item_spec(
     parent_component_inputs: pipeline_spec_pb2.ComponentInputsSpec,
     tasks_in_current_dag: List[str],
 ) -> pipeline_spec_pb2.TaskInputsSpec.InputParameterSpec.ParameterListItemSpec:
-    """Builds a scalar parameter reference within a static collection."""
+    """Builds a scalar parameter reference within a static list binding."""
     source_channel = input_value
     selector = ''
     if isinstance(input_value, for_loop.LoopArgumentVariable):
@@ -267,30 +267,18 @@ def build_task_spec_for_task(
         # Since LoopParameterArgument and LoopArtifactArgument and LoopArgumentVariable are narrower
         # types than PipelineParameterChannel, start with them.
 
-        unsupported_list_channel_types = (
-            dsl.Collected,
-            for_loop.LoopParameterArgument,
-            for_loop.LoopArtifactArgument,
-            for_loop.LoopArgumentVariable,
-        )
-        if isinstance(input_value, list):
-            unsupported_items = [
-                item for item in input_value
-                if isinstance(item, unsupported_list_channel_types)
-            ]
-            if unsupported_items:
-                raise ValueError(
-                    'Lists of task outputs cannot contain '
-                    f'{type(unsupported_items[0]).__name__} values.')
-
         input_definition = (task.component_spec.inputs or {}).get(input_name)
-        if isinstance(input_value, dsl.Collected) and input_value.is_static:
+        is_channel_list = (
+            isinstance(input_value, list) and input_value and all(
+                isinstance(item, pipeline_channel.PipelineChannel)
+                for item in input_value))
+        if is_channel_list:
             assert input_definition is not None
             if input_definition.is_artifact_list:
                 artifact_list = pipeline_task_spec.inputs.artifacts[
                     input_name].artifact_list
                 artifact_list.SetInParent()
-                for item in input_value.outputs:
+                for item in input_value:
                     artifact_list.items.add().CopyFrom(
                         _build_artifact_list_item_spec(
                             input_value=item,
@@ -300,7 +288,7 @@ def build_task_spec_for_task(
             else:
                 parameter_list = pipeline_task_spec.inputs.parameters[
                     input_name].parameter_list
-                for item in input_value.outputs:
+                for item in input_value:
                     parameter_list.items.add().CopyFrom(
                         _build_parameter_list_item_spec(
                             input_value=item,

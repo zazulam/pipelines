@@ -216,6 +216,25 @@ Please see [Pipeline Basics][pipelines] for comprehensive documentation on how t
 
 KFP supports input lists of artifacts, annotated as `List[Artifact]` or `Input[List[Artifact]]`. This is useful for collecting output artifacts from a loop of tasks using the [`dsl.ParallelFor`][dsl-parallelfor] and [`dsl.Collected`][dsl-collected] control flow objects.
 
+You can also pass an ordered, compile-time-known list of scalar artifact
+outputs from independently instantiated tasks:
+
+```python
+@dsl.pipeline
+def model_selection_pipeline():
+    svc = train_svc()
+    xgb = train_xgb()
+    lr = train_lr()
+
+    evaluate_models(models=[svc.output, xgb.output, lr.output])
+```
+
+The destination must be an artifact-list input such as
+`models: Input[List[Model]]`. Every member must be a compatible scalar artifact
+channel. KFP preserves list order and repeated members. Lists cannot initially
+mix channels with ordinary values, contain nested lists, or contain
+already-list-valued channels.
+
 Pipelines can also return an output list of artifacts by using a `-> List[Artifact]` return annotation and returning a [`dsl.Collected`][dsl-collected] instance. 
 
 Both consuming an input list of artifacts and returning an output list of artifacts from a pipeline are described in [Pipeline Control Flow: Parallel looping][parallel-looping]. Creating output lists of artifacts from a single-step component is not currently supported.

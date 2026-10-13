@@ -180,8 +180,7 @@ class OrchestratorUtils:
                         item.component_input_parameter)
                 else:
                     raise ValueError(
-                        f'Missing static collection item for parameter {input_name}.'
-                    )
+                        f'Missing static list item for parameter {input_name}.')
                 if item.parameter_expression_selector:
                     value = cls._apply_expression_selector(
                         value, item.parameter_expression_selector)
@@ -221,8 +220,7 @@ class OrchestratorUtils:
                         item.component_input_artifact)
                 else:
                     raise ValueError(
-                        f'Missing static collection item for artifact {input_name}.'
-                    )
+                        f'Missing static list item for artifact {input_name}.')
                 artifacts.append(artifact)
             return artifacts
 

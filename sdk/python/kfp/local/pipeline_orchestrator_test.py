@@ -129,7 +129,7 @@ class TestRunLocalPipeline(testing_utilities.LocalRunnerEnvironmentTestCase):
         self.assertEqual(task.output, 'text')
         self.assert_output_dir_contents(1, 2)
 
-    def test_static_collected_artifacts(self):
+    def test_static_artifact_list(self):
         local.init(local.SubprocessRunner(), pipeline_root=ROOT_FOR_TESTING)
 
         @dsl.component
@@ -145,14 +145,14 @@ class TestRunLocalPipeline(testing_utilities.LocalRunnerEnvironmentTestCase):
             models = [
                 make_model(name=name).output for name in ['svc', 'xgb', 'lr']
             ]
-            return model_names(models=dsl.Collected(models)).output
+            return model_names(models=models).output
 
         task = my_pipeline()
 
         self.assertEqual(task.output, ['svc', 'xgb', 'lr'])
         self.assert_output_dir_contents(1, 4)
 
-    def test_static_collected_parameters(self):
+    def test_static_parameter_list(self):
         local.init(local.SubprocessRunner(), pipeline_root=ROOT_FOR_TESTING)
 
         @dsl.component
@@ -168,7 +168,7 @@ class TestRunLocalPipeline(testing_utilities.LocalRunnerEnvironmentTestCase):
             values = [
                 produce(value=value).output for value in ['first', 'second']
             ]
-            return join(values=dsl.Collected(values)).output
+            return join(values=values).output
 
         task = my_pipeline()
 

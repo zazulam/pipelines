@@ -3748,7 +3748,7 @@ class TestFanInTaskOutputs(unittest.TestCase):
         def my_pipeline():
             first = produce(value='first')
             second = produce(value='second')
-            consume(values=dsl.Collected(first.output, second.output))
+            consume(values=[first.output, second.output, first.output])
 
         parameter_list = my_pipeline.pipeline_spec.root.dag.tasks[
             'consume'].inputs.parameters['values'].parameter_list
@@ -3756,8 +3756,32 @@ class TestFanInTaskOutputs(unittest.TestCase):
             [(item.task_output_parameter.producer_task,
               item.task_output_parameter.output_parameter_key)
              for item in parameter_list.items],
-            [('produce', 'Output'), ('produce-2', 'Output')],
+            [
+                ('produce', 'Output'),
+                ('produce-2', 'Output'),
+                ('produce', 'Output'),
+            ],
         )
+
+    def test_single_parameter_output_compiles_as_list(self):
+
+        @dsl.component
+        def produce() -> str:
+            return 'value'
+
+        @dsl.component
+        def consume(values: List[str]):
+            print(values)
+
+        @dsl.pipeline
+        def my_pipeline():
+            consume(values=[produce().output])
+
+        items = my_pipeline.pipeline_spec.root.dag.tasks[
+            'consume'].inputs.parameters['values'].parameter_list.items
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].task_output_parameter.producer_task,
+                         'produce')
 
     def test_artifact_outputs_compile_as_ordered_list(self):
 
@@ -3783,7 +3807,7 @@ class TestFanInTaskOutputs(unittest.TestCase):
             xgb = train_xgb()
             lr = train_lr()
             models = [svc.output, xgb.output, lr.output]
-            evaluate_models(models=dsl.Collected(models))
+            evaluate_models(models=models)
 
         artifact_list = my_pipeline.pipeline_spec.root.dag.tasks[
             'evaluate-models'].inputs.artifacts['models'].artifact_list
@@ -3813,13 +3837,15 @@ class TestFanInTaskOutputs(unittest.TestCase):
             print(models)
 
         with self.assertRaisesRegex(
-                TypeError, r'must have the same type.*system\.Dataset'):
+                type_utils.InconsistentTypeException,
+                r"Argument type 'system\.Dataset@0\.0\.1'.*'system\.Model@0\.0\.1'"
+        ):
 
             @dsl.pipeline
             def my_pipeline():
                 model = produce_model()
                 dataset = produce_dataset()
-                consume(models=dsl.Collected(model.output, dataset.output))
+                consume(models=[model.output, dataset.output])
 
     def test_channel_list_crosses_dag_boundary(self):
 
@@ -3836,7 +3862,7 @@ class TestFanInTaskOutputs(unittest.TestCase):
             first = produce(value='first')
             second = produce(value='second')
             with dsl.If(run_consumer == True):
-                consume(values=dsl.Collected(first.output, second.output))
+                consume(values=[first.output, second.output])
 
         condition_component = my_pipeline.pipeline_spec.components[
             'comp-condition-1']
@@ -3847,6 +3873,31 @@ class TestFanInTaskOutputs(unittest.TestCase):
             [
                 'pipelinechannel--produce-Output',
                 'pipelinechannel--produce-2-Output',
+            ],
+        )
+
+    def test_loop_item_subvariables_compile_with_selectors(self):
+
+        @dsl.component
+        def consume(values: List[str]):
+            print(values)
+
+        @dsl.pipeline
+        def my_pipeline():
+            with dsl.ParallelFor([{'first': 'a', 'second': 'b'}]) as item:
+                consume(values=[item.first, item.second])
+
+        loop_component = next(
+            component
+            for name, component in my_pipeline.pipeline_spec.components.items()
+            if name.startswith('comp-for-loop-'))
+        items = loop_component.dag.tasks['consume'].inputs.parameters[
+            'values'].parameter_list.items
+        self.assertEqual(
+            [item.parameter_expression_selector for item in items],
+            [
+                'parseJson(string_value)["first"]',
+                'parseJson(string_value)["second"]',
             ],
         )
 
@@ -3871,7 +3922,7 @@ class TestFanInTaskOutputs(unittest.TestCase):
             ['first', 'second'],
         )
 
-    def test_collected_rejects_constant_values(self):
+    def test_channel_list_rejects_mixed_constant_values(self):
 
         @dsl.component
         def produce() -> str:
@@ -3881,13 +3932,62 @@ class TestFanInTaskOutputs(unittest.TestCase):
         def consume(values: List[str]):
             print(values)
 
-        with self.assertRaisesRegex(TypeError,
-                                    'accepts only PipelineChannel values'):
+        with self.assertRaisesRegex(
+                TypeError,
+                'Lists cannot mix pipeline channels with ordinary values'):
 
             @dsl.pipeline
             def my_pipeline():
                 produced = produce()
-                consume(values=dsl.Collected(produced.output, 'constant'))
+                consume(values=[produced.output, 'constant'])
+
+    def test_channel_list_rejects_mixed_parameter_and_artifact_channels(self):
+
+        @dsl.component
+        def produce_parameter() -> str:
+            return 'value'
+
+        @dsl.component
+        def produce_artifact() -> Model:
+            return Model(uri='gs://model')
+
+        @dsl.component
+        def consume(models: Input[List[Model]]):
+            print(models)
+
+        with self.assertRaisesRegex(
+                TypeError, 'Lists cannot mix parameter and artifact channels'):
+
+            @dsl.pipeline
+            def my_pipeline():
+                consume(models=[
+                    produce_artifact().output,
+                    produce_parameter().output,
+                ])
+
+    def test_untyped_list_requires_homogeneous_parameter_channels(self):
+
+        @dsl.component
+        def produce_string() -> str:
+            return 'value'
+
+        @dsl.component
+        def produce_integer() -> int:
+            return 1
+
+        @dsl.component
+        def consume(values: List):
+            print(values)
+
+        with self.assertRaisesRegex(
+                TypeError, 'Parameter channels must have the same type'):
+
+            @dsl.pipeline
+            def my_pipeline():
+                consume(values=[
+                    produce_string().output,
+                    produce_integer().output,
+                ])
 
     def test_collected_channel_in_list_is_rejected(self):
 
@@ -3899,14 +3999,91 @@ class TestFanInTaskOutputs(unittest.TestCase):
         def consume(values: List[str]):
             print(values)
 
-        with self.assertRaisesRegex(ValueError,
-                                    'cannot contain Collected values'):
+        with self.assertRaisesRegex(TypeError, 'cannot be Collected'):
 
             @dsl.pipeline
             def my_pipeline():
                 with dsl.ParallelFor(['first', 'second']) as value:
                     produced = produce(value=value)
                 consume(values=[dsl.Collected(produced.output)])
+
+    def test_oneof_channel_in_list_is_rejected(self):
+
+        @dsl.component
+        def produce(value: str) -> str:
+            return value
+
+        @dsl.component
+        def consume(values: List[str]):
+            print(values)
+
+        with self.assertRaisesRegex(TypeError,
+                                    'Channel list item 0 cannot be OneOf'):
+
+            @dsl.pipeline
+            def my_pipeline(condition: bool = True):
+                with dsl.If(condition == True):
+                    first = produce(value='first')
+                with dsl.Else():
+                    second = produce(value='second')
+                consume(values=[dsl.OneOf(first.output, second.output)])
+
+    def test_list_valued_parameter_channel_is_rejected(self):
+
+        @dsl.component
+        def produce() -> List[str]:
+            return ['value']
+
+        @dsl.component
+        def consume(values: List[str]):
+            print(values)
+
+        with self.assertRaisesRegex(TypeError,
+                                    'Channel list item 0 must be scalar'):
+
+            @dsl.pipeline
+            def my_pipeline():
+                consume(values=[produce().output])
+
+    def test_list_valued_artifact_channel_is_rejected(self):
+
+        @dsl.component
+        def produce_one() -> Model:
+            return Model(uri='gs://model')
+
+        @dsl.pipeline
+        def produce() -> List[Model]:
+            with dsl.ParallelFor([1, 2]):
+                model = produce_one()
+            return dsl.Collected(model.output)
+
+        @dsl.component
+        def consume(models: Input[List[Model]]):
+            print(models)
+
+        with self.assertRaisesRegex(TypeError,
+                                    'Channel list item 0 must be scalar'):
+
+            @dsl.pipeline
+            def my_pipeline():
+                consume(models=[produce().output])
+
+    def test_channel_list_requires_list_typed_destination(self):
+
+        @dsl.component
+        def produce() -> str:
+            return 'value'
+
+        @dsl.component
+        def consume(value: str):
+            print(value)
+
+        with self.assertRaisesRegex(
+                TypeError, 'Parameter channel lists require a LIST input'):
+
+            @dsl.pipeline
+            def my_pipeline():
+                consume(value=[produce().output])
 
 
 class TestListOfArtifactsInterfaceCompileAndLoad(unittest.TestCase):

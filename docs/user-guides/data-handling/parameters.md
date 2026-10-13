@@ -101,6 +101,25 @@ def my_pipeline(
     )
 ```
 
+### Lists of task output parameters
+
+A list-typed component input can receive an ordered, compile-time-known list of
+scalar outputs from independently instantiated tasks:
+
+```python
+@dsl.pipeline
+def comparison_pipeline():
+    first = produce_score(model='first')
+    second = produce_score(model='second')
+
+    compare_scores(scores=[first.output, second.output])
+```
+
+Every member must be a compatible scalar parameter channel. KFP preserves list
+order and repeated members. A list containing only ordinary Python values keeps
+its existing constant-list behavior. Lists cannot initially mix channels with
+ordinary values, contain nested lists, or contain already-list-valued channels.
+
 ### Output parameters
 
 For Python Components and pipelines, output parameters are indicated via return annotations:

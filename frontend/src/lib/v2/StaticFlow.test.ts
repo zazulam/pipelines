@@ -44,7 +44,7 @@ describe('StaticFlow', () => {
     }
   });
 
-  it('converts static collections to unique dependency edges', () => {
+  it('converts static lists to unique dependency edges', () => {
     const pipelineSpec = PipelineSpec.fromJSON({
       root: {
         dag: {
