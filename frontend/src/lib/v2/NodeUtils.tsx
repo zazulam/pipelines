@@ -15,12 +15,16 @@
 import { PipelineSpec } from 'src/generated/pipeline_spec';
 import { isRuntimeIterationLayer } from './RuntimeLayerUtils';
 
-export function getComponentSpec(pipelineSpec: PipelineSpec, layers: string[], taskKey: string) {
-  let currentDag = pipelineSpec.root?.dag;
+function getTaskLayers(layers: string[], taskKey: string) {
   const specLayers = layers.filter(
     (layer, index) => !isRuntimeIterationLayer(layer, layers[index - 1]),
   );
-  const taskLayers = [...specLayers.slice(1), taskKey];
+  return [...specLayers.slice(1), taskKey];
+}
+
+export function getComponentSpec(pipelineSpec: PipelineSpec, layers: string[], taskKey: string) {
+  let currentDag = pipelineSpec.root?.dag;
+  const taskLayers = getTaskLayers(layers, taskKey);
   let componentSpec;
   for (let i = 0; i < taskLayers.length; i++) {
     const pipelineTaskSpec = currentDag?.tasks[taskLayers[i]];
@@ -35,4 +39,21 @@ export function getComponentSpec(pipelineSpec: PipelineSpec, layers: string[], t
     currentDag = componentSpec.dag;
   }
   return componentSpec;
+}
+
+export function getTaskSpec(pipelineSpec: PipelineSpec, layers: string[], taskKey: string) {
+  let currentDag = pipelineSpec.root?.dag;
+  const taskLayers = getTaskLayers(layers, taskKey);
+  for (let index = 0; index < taskLayers.length; index++) {
+    const taskSpec = currentDag?.tasks[taskLayers[index]];
+    if (!taskSpec || index === taskLayers.length - 1) {
+      return taskSpec || null;
+    }
+    const componentName = taskSpec.componentRef?.name;
+    if (!componentName) {
+      return null;
+    }
+    currentDag = pipelineSpec.components[componentName]?.dag;
+  }
+  return null;
 }

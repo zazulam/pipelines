@@ -211,13 +211,18 @@ class PipelineTask:
 
         self._inputs = args
 
-        self._channel_inputs = [
-            value for _, value in args.items()
-            if isinstance(value, pipeline_channel.PipelineChannel)
-        ] + pipeline_channel.extract_pipeline_channels_from_any([
-            value for _, value in args.items()
-            if not isinstance(value, pipeline_channel.PipelineChannel)
-        ])
+        from kfp.dsl import for_loop
+        self._channel_inputs = []
+        for value in args.values():
+            if isinstance(value, for_loop.Collected) and value.is_static:
+                self._channel_inputs.extend(value.outputs)
+            elif isinstance(value, pipeline_channel.PipelineChannel):
+                self._channel_inputs.append(value)
+        self._channel_inputs += pipeline_channel.extract_pipeline_channels_from_any(
+            [
+                value for _, value in args.items()
+                if not isinstance(value, pipeline_channel.PipelineChannel)
+            ])
 
         if execute_locally:
             self._execute_locally(args=args)

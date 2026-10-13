@@ -22,7 +22,7 @@ import {
 } from 'src/generated/pipeline_spec';
 import { KeyValue } from 'src/lib/DetailsTableTypes';
 import { getStringEnumKey } from 'src/lib/Utils';
-import { getComponentSpec } from 'src/lib/v2/NodeUtils';
+import { getComponentSpec, getTaskSpec } from 'src/lib/v2/NodeUtils';
 import {
   getKeysFromArtifactNodeKey,
   getTaskKeyFromNodeKey,
@@ -102,7 +102,8 @@ function TaskNodeDetail({
 }: TaskNodeDetailProps) {
   const taskKey = getTaskKeyFromNodeKey(element.id);
   const componentSpec = getComponentSpec(pipelineSpec, layers, taskKey);
-  if (!componentSpec) {
+  const taskSpec = getTaskSpec(pipelineSpec, layers, taskKey);
+  if (!componentSpec || !taskSpec) {
     return NODE_INFO_UNKNOWN;
   }
 
@@ -114,6 +115,7 @@ function TaskNodeDetail({
   const inputParameters = getInputParameters(componentSpec);
   const outputArtifacts = getOutputArtifacts(componentSpec);
   const outputParameters = getOutputParameters(componentSpec);
+  const staticCollectionBindings = getStaticCollectionBindings(taskSpec);
 
   const componentDag = componentSpec.dag;
 
@@ -149,6 +151,11 @@ function TaskNodeDetail({
       {outputParameters && (
         <div>
           <DetailsTable title='Output Parameters' fields={outputParameters} />
+        </div>
+      )}
+      {staticCollectionBindings.length > 0 && (
+        <div>
+          <DetailsTable title='Static Collection Bindings' fields={staticCollectionBindings} />
         </div>
       )}
       {image && (
@@ -187,6 +194,47 @@ function TaskNodeDetail({
       )}
     </div>
   );
+}
+
+export function getStaticCollectionBindings(
+  taskSpec: NonNullable<ReturnType<typeof getTaskSpec>>,
+): Array<KeyValue<string>> {
+  const bindings: Array<KeyValue<string>> = [];
+  for (const [inputName, inputSpec] of Object.entries(taskSpec.inputs?.artifacts || {})) {
+    if (!inputSpec.artifactList) {
+      continue;
+    }
+    bindings.push([
+      inputName,
+      JSON.stringify(
+        inputSpec.artifactList.items.map((item, position) => {
+          const source = item.taskOutputArtifact
+            ? `${item.taskOutputArtifact.producerTask}.${item.taskOutputArtifact.outputArtifactKey}`
+            : `component input ${item.componentInputArtifact}`;
+          return `[${position}] ${source}`;
+        }),
+      ),
+    ]);
+  }
+  for (const [inputName, inputSpec] of Object.entries(taskSpec.inputs?.parameters || {})) {
+    if (!inputSpec.parameterList) {
+      continue;
+    }
+    bindings.push([
+      inputName,
+      JSON.stringify(
+        inputSpec.parameterList.items.map((item, position) => {
+          const source = item.taskOutputParameter
+            ? `${item.taskOutputParameter.producerTask}.${item.taskOutputParameter.outputParameterKey}`
+            : `component input ${item.componentInputParameter}`;
+          return item.parameterExpressionSelector
+            ? `[${position}] ${source} (${item.parameterExpressionSelector})`
+            : `[${position}] ${source}`;
+        }),
+      ),
+    ]);
+  }
+  return bindings;
 }
 
 interface ArtifactNodeDetailProps {

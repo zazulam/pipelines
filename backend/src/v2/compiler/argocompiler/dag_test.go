@@ -27,6 +27,58 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAddImplicitDependenciesForInputLists(t *testing.T) {
+	dag := &pipelinespec.DagSpec{
+		Tasks: map[string]*pipelinespec.PipelineTaskSpec{
+			"parameter-producer": {},
+			"artifact-producer":  {},
+			"consumer": {
+				Inputs: &pipelinespec.TaskInputsSpec{
+					Parameters: map[string]*pipelinespec.TaskInputsSpec_InputParameterSpec{
+						"parameters": {
+							Kind: &pipelinespec.TaskInputsSpec_InputParameterSpec_ParameterList{
+								ParameterList: &pipelinespec.TaskInputsSpec_InputParameterSpec_ParameterListSpec{
+									Items: []*pipelinespec.TaskInputsSpec_InputParameterSpec_ParameterListItemSpec{
+										{
+											Kind: &pipelinespec.TaskInputsSpec_InputParameterSpec_ParameterListItemSpec_TaskOutputParameter{
+												TaskOutputParameter: &pipelinespec.TaskInputsSpec_InputParameterSpec_TaskOutputParameterSpec{
+													ProducerTask: "parameter-producer",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					Artifacts: map[string]*pipelinespec.TaskInputsSpec_InputArtifactSpec{
+						"artifacts": {
+							Kind: &pipelinespec.TaskInputsSpec_InputArtifactSpec_ArtifactList{
+								ArtifactList: &pipelinespec.TaskInputsSpec_InputArtifactSpec_ArtifactListSpec{
+									Items: []*pipelinespec.TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec{
+										{
+											Kind: &pipelinespec.TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec_TaskOutputArtifact{
+												TaskOutputArtifact: &pipelinespec.TaskInputsSpec_InputArtifactSpec_TaskOutputArtifactSpec{
+													ProducerTask: "artifact-producer",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	err := addImplicitDependencies(dag)
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"artifact-producer", "parameter-producer"}, dag.GetTasks()["consumer"].GetDependentTasks())
+}
+
 func TestDagDriverTask_WithTaskName(t *testing.T) {
 	proxy.InitializeConfigWithEmptyForTests()
 

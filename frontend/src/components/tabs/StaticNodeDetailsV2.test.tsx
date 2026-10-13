@@ -17,7 +17,7 @@
 import { render, screen } from '@testing-library/react';
 import { testBestPractices } from 'src/TestUtils';
 import { CommonTestWrapper } from 'src/TestWrapper';
-import { StaticNodeDetailsV2 } from './StaticNodeDetailsV2';
+import { getStaticCollectionBindings, StaticNodeDetailsV2 } from './StaticNodeDetailsV2';
 import v2YamlTemplateString from 'src/data/test/lightweight_python_functions_v2_pipeline_rev.yaml?raw';
 import v2YamlSubDagTemplateString from 'src/data/test/pipeline_with_loops_and_conditions.yaml?raw';
 
@@ -210,5 +210,126 @@ describe('StaticNodeDetailsV2', () => {
 
     screen.getByText('Artifact Type');
     screen.getByText('system.Model (version: 0.0.1)');
+  });
+  it('Renders ordered static collection bindings with duplicates and selectors', async () => {
+    const templateString = `
+pipelineInfo:
+  name: static-collections
+root:
+  dag:
+    tasks:
+      consume:
+        taskInfo:
+          name: consume
+        componentRef:
+          name: comp-consume
+        inputs:
+          artifacts:
+            models:
+              artifactList:
+                items:
+                  - taskOutputArtifact:
+                      producerTask: trainer-a
+                      outputArtifactKey: model
+                  - taskOutputArtifact:
+                      producerTask: trainer-b
+                      outputArtifactKey: model
+                  - taskOutputArtifact:
+                      producerTask: trainer-a
+                      outputArtifactKey: model
+          parameters:
+            scores:
+              parameterList:
+                items:
+                  - taskOutputParameter:
+                      producerTask: evaluate
+                      outputParameterKey: metrics
+                    parameterExpressionSelector: struct_value.accuracy
+components:
+  comp-consume:
+    inputDefinitions:
+      artifacts:
+        models:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+          isArtifactList: true
+      parameters:
+        scores:
+          parameterType: LIST
+deploymentSpec:
+  executors: {}
+`;
+
+    render(
+      <CommonTestWrapper>
+        <StaticNodeDetailsV2
+          templateString={templateString}
+          layers={['root']}
+          onLayerChange={(layers) => {}}
+          element={{
+            data: { label: 'consume' },
+            id: 'task.consume',
+            position: { x: 100, y: 100 },
+            type: 'EXECUTION',
+          }}
+        />
+      </CommonTestWrapper>,
+    );
+
+    screen.getByText('Static Collection Bindings');
+    expect(screen.getAllByText('models')).toHaveLength(2);
+    expect(screen.getAllByText('scores')).toHaveLength(2);
+
+    expect(
+      getStaticCollectionBindings({
+        inputs: {
+          artifacts: {
+            models: {
+              artifactList: {
+                items: [
+                  {
+                    taskOutputArtifact: {
+                      producerTask: 'trainer-a',
+                      outputArtifactKey: 'model',
+                    },
+                  },
+                  {
+                    taskOutputArtifact: {
+                      producerTask: 'trainer-b',
+                      outputArtifactKey: 'model',
+                    },
+                  },
+                  {
+                    taskOutputArtifact: {
+                      producerTask: 'trainer-a',
+                      outputArtifactKey: 'model',
+                    },
+                  },
+                ],
+              },
+            },
+          },
+          parameters: {
+            scores: {
+              parameterList: {
+                items: [
+                  {
+                    taskOutputParameter: {
+                      producerTask: 'evaluate',
+                      outputParameterKey: 'metrics',
+                    },
+                    parameterExpressionSelector: 'struct_value.accuracy',
+                  },
+                ],
+              },
+            },
+          },
+        },
+      }),
+    ).toEqual([
+      ['models', '["[0] trainer-a.model","[1] trainer-b.model","[2] trainer-a.model"]'],
+      ['scores', '["[0] evaluate.metrics (struct_value.accuracy)"]'],
+    ]);
   });
 });

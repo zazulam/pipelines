@@ -911,7 +911,70 @@ func autoMigrate(db *gorm.DB) error {
 	if err := db.AutoMigrate(model.AllModels()...); err != nil {
 		return fmt.Errorf("AutoMigrate failed: %w", err)
 	}
+	if err := reconcileArtifactTaskUniqueLinkIndex(db); err != nil {
+		return fmt.Errorf("failed to reconcile artifact-task unique index: %w", err)
+	}
 
+	return nil
+}
+
+func reconcileArtifactTaskUniqueLinkIndex(db *gorm.DB) error {
+	const indexName = "UniqueLink"
+	expectedColumns := []string{
+		"ArtifactID",
+		"TaskID",
+		"Type",
+		"Iteration",
+		"ArtifactKey",
+		"CollectionPosition",
+	}
+
+	indexIsCurrent := func() (bool, error) {
+		indexes, err := db.Migrator().GetIndexes(&model.ArtifactTask{})
+		if err != nil {
+			return false, err
+		}
+		for _, index := range indexes {
+			if !strings.EqualFold(index.Name(), indexName) {
+				continue
+			}
+			columns := index.Columns()
+			if len(columns) != len(expectedColumns) {
+				return false, nil
+			}
+			for i := range columns {
+				if !strings.EqualFold(columns[i], expectedColumns[i]) {
+					return false, nil
+				}
+			}
+			return true, nil
+		}
+		return false, nil
+	}
+
+	current, err := indexIsCurrent()
+	if err != nil {
+		return err
+	}
+	if current {
+		return nil
+	}
+
+	if db.Migrator().HasIndex(&model.ArtifactTask{}, indexName) {
+		if err := db.Migrator().DropIndex(&model.ArtifactTask{}, indexName); err != nil {
+			current, inspectErr := indexIsCurrent()
+			if inspectErr != nil || !current {
+				return err
+			}
+			return nil
+		}
+	}
+	if err := db.Migrator().CreateIndex(&model.ArtifactTask{}, indexName); err != nil {
+		current, inspectErr := indexIsCurrent()
+		if inspectErr != nil || !current {
+			return err
+		}
+	}
 	return nil
 }
 

@@ -1682,6 +1682,7 @@ func toAPIArtifactTask(artifactTask *model.ArtifactTask) *apiv2beta1.ArtifactTas
 		RunId:      artifactTask.RunUUID,
 		Key:        artifactTask.ArtifactKey,
 	}
+	apiArtifactTask.CollectionPosition = artifactTask.CollectionPosition
 
 	// Convert Producer from JSONData to IOProducer
 	if artifactTask.Producer != nil {
@@ -1725,6 +1726,10 @@ func toModelArtifactTask(apiAT *apiv2beta1.ArtifactTask) (*model.ArtifactTask, e
 		TaskID:      apiAT.GetTaskId(),
 		Type:        model.IOType(apiAT.GetType()),
 		ArtifactKey: apiAT.GetKey(),
+	}
+	if apiAT.CollectionPosition != nil {
+		collectionPosition := apiAT.GetCollectionPosition()
+		modelAT.CollectionPosition = &collectionPosition
 	}
 
 	// Convert Producer from IOProducer to JSONData
@@ -1956,19 +1961,21 @@ func toAPITask(modelTask *model.Task, childTasks []*model.Task) (*apiv2beta1.Pip
 		// For non-ITERATOR_OUTPUT types, all same-key artifacts are consolidated into one IOArtifact.
 		// For ITERATOR_OUTPUT, each distinct iteration gets its own IOArtifact.
 		type groupKey struct {
-			artifactKey  string
-			ioType       apiv2beta1.IOType
-			producerTask string
-			hasIteration bool
-			iterationVal int64
+			artifactKey      string
+			ioType           apiv2beta1.IOType
+			staticCollection bool
+			producerTask     string
+			hasIteration     bool
+			iterationVal     int64
 		}
 
 		makeKey := func(h model.TaskArtifactHydrated) groupKey {
 			key := groupKey{
-				artifactKey: h.Key,
-				ioType:      h.Type,
+				artifactKey:      h.Key,
+				ioType:           h.Type,
+				staticCollection: h.CollectionPosition != nil,
 			}
-			if h.Producer != nil {
+			if !key.staticCollection && h.Producer != nil {
 				key.producerTask = h.Producer.TaskName
 				// Only split by iteration for ITERATOR_OUTPUT; ordinary outputs
 				// consolidate all same-key artifacts into a single IOArtifact.
@@ -1999,6 +2006,9 @@ func toAPITask(modelTask *model.Task, childTasks []*model.Task) (*apiv2beta1.Pip
 			if left.ioType != right.ioType {
 				return left.ioType < right.ioType
 			}
+			if left.staticCollection != right.staticCollection {
+				return !left.staticCollection && right.staticCollection
+			}
 			if left.producerTask != right.producerTask {
 				return left.producerTask < right.producerTask
 			}
@@ -2012,6 +2022,11 @@ func toAPITask(modelTask *model.Task, childTasks []*model.Task) (*apiv2beta1.Pip
 		out := make([]*apiv2beta1.PipelineTask_InputOutputs_IOArtifact, 0, len(grouped))
 		for _, key := range keys {
 			hydratedGroup := grouped[key]
+			if key.staticCollection {
+				sort.SliceStable(hydratedGroup, func(i, j int) bool {
+					return *hydratedGroup[i].CollectionPosition < *hydratedGroup[j].CollectionPosition
+				})
+			}
 
 			apiArtifacts := make([]*apiv2beta1.Artifact, 0, len(hydratedGroup))
 			for _, h := range hydratedGroup {
@@ -2030,7 +2045,7 @@ func toAPITask(modelTask *model.Task, childTasks []*model.Task) (*apiv2beta1.Pip
 				ArtifactKey: firstHydrated.Key,
 				Type:        firstHydrated.Type,
 			}
-			if firstHydrated.Producer != nil {
+			if !key.staticCollection && firstHydrated.Producer != nil {
 				ioArtifact.Producer = &apiv2beta1.IOProducer{
 					TaskName:  firstHydrated.Producer.TaskName,
 					Iteration: firstHydrated.Producer.Iteration,

@@ -32,6 +32,22 @@ func resolveArtifacts(opts common.Options) ([]ArtifactMetadata, error) {
 	var artifacts []ArtifactMetadata
 
 	for key, artifactSpec := range opts.Task.GetInputs().GetArtifacts() {
+		if artifactSpec.GetArtifactList() != nil {
+			componentArtifact := opts.Component.GetInputDefinitions().GetArtifacts()[key]
+			if componentArtifact == nil {
+				return nil, fmt.Errorf("static artifact collection %q has no destination input definition", key)
+			}
+			if !componentArtifact.GetIsArtifactList() {
+				return nil, fmt.Errorf("static artifact collection %q requires an artifact-list destination", key)
+			}
+			artifactMetadata, err := resolveArtifactList(opts, key, artifactSpec, opts.ParentTask.Inputs.GetArtifacts())
+			if err != nil {
+				return nil, err
+			}
+			artifacts = append(artifacts, artifactMetadata)
+			continue
+		}
+
 		producerTask, v, ioType, err := resolveInputArtifact(opts, key, artifactSpec, opts.ParentTask.Inputs.GetArtifacts())
 		if err != nil {
 			componentArtifactDef := opts.Component.GetInputDefinitions().GetArtifacts()[key]
@@ -70,6 +86,76 @@ func resolveArtifacts(opts common.Options) ([]ArtifactMetadata, error) {
 	}
 
 	return artifacts, nil
+}
+
+func resolveArtifactList(
+	opts common.Options,
+	inputName string,
+	artifactSpec *pipelinespec.TaskInputsSpec_InputArtifactSpec,
+	inputArtifacts []*apiv2beta1.PipelineTask_InputOutputs_IOArtifact,
+) (ArtifactMetadata, error) {
+	listSpec := artifactSpec.GetArtifactList()
+	resolvedArtifacts := make([]*apiv2beta1.Artifact, 0, len(listSpec.GetItems()))
+	producers := make([]*apiv2beta1.IOProducer, 0, len(listSpec.GetItems()))
+	positions := make([]*int64, 0, len(listSpec.GetItems()))
+	downloadedToWorkspace := false
+	if len(listSpec.GetItems()) == 0 {
+		return ArtifactMetadata{}, fmt.Errorf("static artifact collection %q must contain at least one item", inputName)
+	}
+
+	for index, item := range listSpec.GetItems() {
+		scalarSpec := &pipelinespec.TaskInputsSpec_InputArtifactSpec{}
+		switch item.GetKind().(type) {
+		case *pipelinespec.TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec_TaskOutputArtifact:
+			scalarSpec.Kind = &pipelinespec.TaskInputsSpec_InputArtifactSpec_TaskOutputArtifact{
+				TaskOutputArtifact: item.GetTaskOutputArtifact(),
+			}
+		case *pipelinespec.TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec_ComponentInputArtifact:
+			scalarSpec.Kind = &pipelinespec.TaskInputsSpec_InputArtifactSpec_ComponentInputArtifact{
+				ComponentInputArtifact: item.GetComponentInputArtifact(),
+			}
+		default:
+			return ArtifactMetadata{}, fmt.Errorf("resolving artifact %q list item %d: unsupported item kind %T", inputName, index, item.GetKind())
+		}
+
+		producerTask, resolved, _, err := resolveInputArtifact(opts, inputName, scalarSpec, inputArtifacts)
+		if err != nil {
+			return ArtifactMetadata{}, fmt.Errorf("resolving artifact %q list item %d: %w", inputName, index, err)
+		}
+		if len(resolved.GetArtifacts()) != 1 {
+			return ArtifactMetadata{}, fmt.Errorf("resolving artifact %q list item %d: expected one scalar artifact, got %d", inputName, index, len(resolved.GetArtifacts()))
+		}
+		if resolved.GetProducer() == nil {
+			return ArtifactMetadata{}, fmt.Errorf("resolving artifact %q list item %d: producer cannot be nil", inputName, index)
+		}
+
+		position := int64(index)
+		resolvedArtifacts = append(resolvedArtifacts, resolved.GetArtifacts()[0])
+		producers = append(producers, resolved.GetProducer())
+		positions = append(positions, &position)
+		if producerTask != nil && producerTask.GetType() == apiv2beta1.PipelineTask_IMPORTER &&
+			producerTask.GetTypeAttributes().GetDownloadToWorkspace() {
+			downloadedToWorkspace = true
+		}
+	}
+
+	producer := &apiv2beta1.IOProducer{TaskName: opts.ParentTask.GetName()}
+	if len(producers) > 0 {
+		producer = producers[0]
+	}
+	return ArtifactMetadata{
+		Key:                   inputName,
+		DownloadedToWorkSpace: downloadedToWorkspace,
+		ArtifactProducers:     producers,
+		CollectionPositions:   positions,
+		InputArtifactSpec:     artifactSpec,
+		ArtifactIO: &apiv2beta1.PipelineTask_InputOutputs_IOArtifact{
+			Artifacts:   resolvedArtifacts,
+			Type:        apiv2beta1.IOType_COLLECTED_INPUTS,
+			ArtifactKey: inputName,
+			Producer:    producer,
+		},
+	}, nil
 }
 
 // resolveInputArtifact resolves the input artifact based on its specification and returns details about its type and producer.

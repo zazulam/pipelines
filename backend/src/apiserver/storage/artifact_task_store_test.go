@@ -176,6 +176,62 @@ func TestCreateArtifactTask_AllowsSameArtifactReuseAcrossDifferentKeys(t *testin
 	assert.Len(t, rows, 2)
 }
 
+func TestCreateArtifactTask_AllowsRepeatedCollectionMemberAtDifferentPositions(t *testing.T) {
+	db, artifactStore, taskStore, _, linkStore := initializeArtifactTaskDeps()
+	defer db.Close()
+
+	artifactStore.uuid = util.NewFakeUUIDGeneratorOrFatal(artifactID1, nil)
+	art, err := artifactStore.CreateArtifact(&model.Artifact{
+		Namespace: "ns1",
+		Type:      1,
+		URI:       strPTR("s3://b/repeated"),
+		Name:      "repeated-artifact",
+		Metadata:  map[string]interface{}{},
+	})
+	assert.NoError(t, err)
+
+	taskStore.uuid = util.NewFakeUUIDGeneratorOrFatal(taskID1, nil)
+	task, err := taskStore.CreateTask(&model.Task{
+		Namespace:        "ns1",
+		RunUUID:          runID1,
+		Name:             "consumer",
+		Pods:             createTaskPodsAsJSONSlice(createTaskPod("p1", "uid1", apiv2beta1.PipelineTask_EXECUTOR)),
+		Fingerprint:      "fp-static-collection",
+		State:            1,
+		StateHistory:     model.JSONSlice{},
+		InputParameters:  model.JSONSlice{},
+		OutputParameters: model.JSONSlice{},
+		Type:             0,
+		TypeAttrs:        map[string]interface{}{},
+	})
+	assert.NoError(t, err)
+
+	for index, position := range []int64{0, 2} {
+		linkStore.uuid = util.NewFakeUUIDGeneratorOrFatal([]string{linkUUID1, linkUUID2}[index], nil)
+		_, err = linkStore.CreateArtifactTask(&model.ArtifactTask{
+			ArtifactID:         art.UUID,
+			TaskID:             task.UUID,
+			RunUUID:            runID1,
+			Type:               model.IOType(apiv2beta1.IOType_COLLECTED_INPUTS),
+			ArtifactKey:        "models",
+			CollectionPosition: &position,
+		})
+		assert.NoError(t, err)
+	}
+
+	opts, _ := list.NewOptions(&model.ArtifactTask{}, 20, "", nil)
+	rows, total, _, err := linkStore.ListArtifactTasks(
+		[]*model.FilterContext{{ReferenceKey: &model.ReferenceKey{Type: model.TaskResourceType, ID: task.UUID}}},
+		nil,
+		opts,
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, total)
+	assert.Len(t, rows, 2)
+	assert.Equal(t, int64(0), *rows[0].CollectionPosition)
+	assert.Equal(t, int64(2), *rows[1].CollectionPosition)
+}
+
 func TestCreateArtifactTask_AllowsSameArtifactReuseAcrossDifferentProducerIterations(t *testing.T) {
 	db, artifactStore, taskStore, _, linkStore := initializeArtifactTaskDeps()
 	defer db.Close()

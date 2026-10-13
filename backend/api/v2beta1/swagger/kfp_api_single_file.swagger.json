@@ -2506,6 +2506,11 @@
         },
         "key": {
           "type": "string"
+        },
+        "collection_position": {
+          "type": "string",
+          "format": "int64",
+          "description": "Position within an explicitly ordered artifact collection."
         }
       },
       "title": "V2beta1ArtifactTask"

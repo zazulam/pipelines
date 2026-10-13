@@ -25,6 +25,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const artifactTaskReconciliationPageSize = 100
+
 // BatchUpdater collects API updates during execution and flushes them
 // in batches to reduce database round-trips.
 type BatchUpdater struct {
@@ -168,6 +170,13 @@ func artifactTaskIterationIdentity(artifactTask *apiV2beta1.ArtifactTask) int64 
 	return artifactTask.GetProducer().GetIteration()
 }
 
+func artifactTaskCollectionPosition(artifactTask *apiV2beta1.ArtifactTask) int64 {
+	if artifactTask == nil || artifactTask.CollectionPosition == nil {
+		return -1
+	}
+	return artifactTask.GetCollectionPosition()
+}
+
 // QueueArtifact queues an artifact to create
 func (b *BatchUpdater) QueueArtifact(request *apiV2beta1.CreateArtifactRequest) {
 	if request == nil {
@@ -180,9 +189,8 @@ func (b *BatchUpdater) QueueArtifact(request *apiV2beta1.CreateArtifactRequest) 
 }
 
 // OmitArtifactTasksAlreadyPresentOnTasks drops queued artifact-task links whose
-// full UniqueLink identity already exists on the target task's hydrated inputs
-// or outputs. Identity includes artifact ID, I/O type, iteration, and key so
-// multi-artifact groups and iterator iterations remain distinct.
+// full UniqueLink identity already exists. Identity includes artifact ID, I/O
+// type, iteration, key, and collection position.
 func (b *BatchUpdater) OmitArtifactTasksAlreadyPresentOnTasks(
 	ctx context.Context,
 	apiClient kfpapi.API,
@@ -205,30 +213,33 @@ func (b *BatchUpdater) OmitArtifactTasksAlreadyPresentOnTasks(
 
 	existingLinksByTask := make(map[string]map[string]struct{}, len(taskIDs))
 	for taskID := range taskIDs {
-		task, err := apiClient.GetTask(ctx, &apiV2beta1.GetTaskRequest{
-			TaskId: taskID,
-			RunId:  runID,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to refresh task %s before omitting existing artifact links: %w", taskID, err)
-		}
 		links := make(map[string]struct{})
-		for _, inputOutputs := range []*apiV2beta1.PipelineTask_InputOutputs{
-			task.GetInputs(),
-			task.GetOutputs(),
-		} {
-			for _, artifactIO := range inputOutputs.GetArtifacts() {
-				for _, artifact := range artifactIO.GetArtifacts() {
-					linkKey := fmt.Sprintf(
-						"%s|%s|%d|%d|%s",
-						artifact.GetArtifactId(),
-						taskID,
-						artifactIO.GetType(),
-						artifactIOIterationIdentity(artifactIO),
-						artifactIO.GetArtifactKey(),
-					)
-					links[linkKey] = struct{}{}
-				}
+		pageToken := ""
+		for {
+			response, err := apiClient.ListArtifactTasks(ctx, &apiV2beta1.ListArtifactTasksRequest{
+				TaskIds:   []string{taskID},
+				RunIds:    []string{runID},
+				PageSize:  artifactTaskReconciliationPageSize,
+				PageToken: pageToken,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to list artifact links for task %s before reconciliation: %w", taskID, err)
+			}
+			for _, artifactTask := range response.GetArtifactTasks() {
+				linkKey := fmt.Sprintf(
+					"%s|%s|%d|%d|%s|%d",
+					artifactTask.GetArtifactId(),
+					artifactTask.GetTaskId(),
+					artifactTask.GetType(),
+					artifactTaskIterationIdentity(artifactTask),
+					artifactTask.GetKey(),
+					artifactTaskCollectionPosition(artifactTask),
+				)
+				links[linkKey] = struct{}{}
+			}
+			pageToken = response.GetNextPageToken()
+			if pageToken == "" {
+				break
 			}
 		}
 		if len(links) > 0 {
@@ -246,12 +257,13 @@ func (b *BatchUpdater) OmitArtifactTasksAlreadyPresentOnTasks(
 		}
 		if links, ok := existingLinksByTask[artifactTask.GetTaskId()]; ok {
 			linkKey := fmt.Sprintf(
-				"%s|%s|%d|%d|%s",
+				"%s|%s|%d|%d|%s|%d",
 				artifactTask.GetArtifactId(),
 				artifactTask.GetTaskId(),
 				artifactTask.GetType(),
 				artifactTaskIterationIdentity(artifactTask),
 				artifactTask.GetKey(),
+				artifactTaskCollectionPosition(artifactTask),
 			)
 			if _, exists := links[linkKey]; exists {
 				continue
@@ -353,12 +365,13 @@ func (b *BatchUpdater) Flush(ctx context.Context, client kfpapi.API) error {
 		seenArtifactTasks := make(map[string]struct{}, len(b.artifactTasks))
 		for _, artifactTask := range b.artifactTasks {
 			dedupeKey := fmt.Sprintf(
-				"%s|%s|%d|%d|%s",
+				"%s|%s|%d|%d|%s|%d",
 				artifactTask.GetArtifactId(),
 				artifactTask.GetTaskId(),
 				artifactTask.GetType(),
 				artifactTaskIterationIdentity(artifactTask),
 				artifactTask.GetKey(),
+				artifactTaskCollectionPosition(artifactTask),
 			)
 			if _, exists := seenArtifactTasks[dedupeKey]; exists {
 				continue

@@ -14,7 +14,7 @@
 """Classes and methods that supports argument for ParallelFor."""
 
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from kfp.dsl import pipeline_channel
 from kfp.dsl.types import type_annotations
@@ -381,13 +381,17 @@ class LoopArgumentVariable(pipeline_channel.PipelineParameterChannel):
         return f'{loop_arg_name}{self.SUBVAR_NAME_DELIMITER}{subvar_name}'
 
 
-# TODO: migrate Collected to OneOfMixin style implementation
 class Collected(pipeline_channel.PipelineChannel):
-    """For collecting into a list the output from a task in dsl.ParallelFor
-    loops.
+    """Collects task outputs into a list.
+
+    A single channel preserves the existing behavior of collecting all
+    iterations of an output produced within ``dsl.ParallelFor``. Multiple
+    channels, or a sequence of channels, collect statically defined task outputs
+    in the order provided.
 
     Args:
-        output: The output of an upstream task within a dsl.ParallelFor loop.
+        output: An upstream task output or a sequence of upstream task outputs.
+        additional_outputs: Additional upstream task outputs to collect.
 
     Example:
       ::
@@ -398,31 +402,71 @@ class Collected(pipeline_channel.PipelineChannel):
                 t = double(num=x)
 
         return add(nums=dsl.Collected(t.output)).output
+
+        models = dsl.Collected(
+            train_svc().output,
+            train_xgb().output,
+            train_lr().output,
+        )
+        evaluate_models(models=models)
     """
 
     def __init__(
         self,
-        output: pipeline_channel.PipelineChannel,
+        output: Union[pipeline_channel.PipelineChannel,
+                      Sequence[pipeline_channel.PipelineChannel]],
+        *additional_outputs: pipeline_channel.PipelineChannel,
     ) -> None:
-        self.output = output
+        is_sequence = isinstance(output, (list, tuple))
+        if is_sequence:
+            if additional_outputs:
+                raise ValueError(
+                    f'dsl.{Collected.__name__} accepts either a sequence of channels or multiple channel arguments, not both.'
+                )
+            outputs = list(output)
+        else:
+            outputs = [output, *additional_outputs]
+
+        if not outputs:
+            raise ValueError(
+                f'dsl.{Collected.__name__} requires at least one PipelineChannel.'
+            )
+        if any(not isinstance(channel, pipeline_channel.PipelineChannel)
+               for channel in outputs):
+            raise TypeError(
+                f'dsl.{Collected.__name__} accepts only PipelineChannel values.'
+            )
+
+        self.outputs = outputs
+        self.is_static = is_sequence or bool(additional_outputs)
+        self.output = outputs[0]
+        for channel in outputs:
+            if isinstance(channel, Collected):
+                raise ValueError(
+                    f'dsl.{Collected.__name__} cannot be nested inside another dsl.{Collected.__name__}.'
+                )
+            self._validate_no_oneof_channel(channel)
+        self._validate_same_channel_kind(outputs)
+        self._validate_same_channel_type(outputs)
+        if self.is_static:
+            self._validate_scalar_channels(outputs)
+
         # we know all dsl.Collected instances are lists, so set `is_artifact_list`
         # for type checking, which occurs before dsl.Collected is updated to
         # it's "correct" channel during compilation
-        if isinstance(output, pipeline_channel.PipelineArtifactChannel):
-            channel_type = output.channel_type
+        if isinstance(self.output, pipeline_channel.PipelineArtifactChannel):
+            channel_type = self.output.channel_type
             self.is_artifact_channel = True
             self.is_artifact_list = True
         else:
             channel_type = 'LIST'
             self.is_artifact_channel = False
             self.is_artifact_list = False
-
         super().__init__(
-            output.name,
+            name=self.output.name,
             channel_type=channel_type,
-            task_name=output.task_name,
+            task_name=None if self.is_static else self.output.task_name,
         )
-        self._validate_no_oneof_channel(self.output)
 
     def _validate_no_oneof_channel(
         self, channel: Union[pipeline_channel.PipelineParameterChannel,
@@ -432,3 +476,40 @@ class Collected(pipeline_channel.PipelineChannel):
             raise ValueError(
                 f'dsl.{pipeline_channel.OneOf.__name__} cannot be used inside of dsl.{Collected.__name__}.'
             )
+
+    def _validate_same_channel_kind(
+            self, channels: Sequence[pipeline_channel.PipelineChannel]) -> None:
+        artifact_statuses = [
+            isinstance(channel, pipeline_channel.PipelineArtifactChannel)
+            for channel in channels
+        ]
+        if any(artifact_statuses) and not all(artifact_statuses):
+            raise TypeError(
+                f'dsl.{Collected.__name__} cannot mix parameter and artifact channels.'
+            )
+
+    def _validate_same_channel_type(
+            self, channels: Sequence[pipeline_channel.PipelineChannel]) -> None:
+        expected_type = channels[0].channel_type
+        for index, channel in enumerate(channels[1:], start=1):
+            if channel.channel_type != expected_type:
+                raise TypeError(
+                    f'Task outputs passed to dsl.{Collected.__name__} must have the same type. Got {expected_type!r} at index 0 and {channel.channel_type!r} at index {index}.'
+                )
+
+    def _validate_scalar_channels(
+            self, channels: Sequence[pipeline_channel.PipelineChannel]) -> None:
+        for index, channel in enumerate(channels):
+            is_artifact_list = (
+                isinstance(channel,
+                           pipeline_channel.PipelineArtifactChannel) and
+                channel.is_artifact_list)
+            is_parameter_list = (
+                isinstance(channel,
+                           pipeline_channel.PipelineParameterChannel) and
+                type_utils.get_parameter_type(channel.channel_type) ==
+                type_utils.LIST)
+            if is_artifact_list or is_parameter_list:
+                raise TypeError(
+                    f'dsl.{Collected.__name__} static collection members must be scalar channels. Got a list-valued channel at index {index}.'
+                )

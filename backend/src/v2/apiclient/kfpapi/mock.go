@@ -110,18 +110,20 @@ func (m *MockAPI) hydrateTask(task *apiv2beta1.PipelineTask) *apiv2beta1.Pipelin
 		task     *apiv2beta1.ArtifactTask
 	}
 	type groupKey struct {
-		artifactKey  string
-		ioType       apiv2beta1.IOType
-		producerTask string
-		hasIteration bool
-		iterationVal int64
+		artifactKey      string
+		ioType           apiv2beta1.IOType
+		staticCollection bool
+		producerTask     string
+		hasIteration     bool
+		iterationVal     int64
 	}
 	makeKey := func(artifactTask *apiv2beta1.ArtifactTask) groupKey {
 		key := groupKey{
-			artifactKey: artifactTask.GetKey(),
-			ioType:      artifactTask.GetType(),
+			artifactKey:      artifactTask.GetKey(),
+			ioType:           artifactTask.GetType(),
+			staticCollection: artifactTask.CollectionPosition != nil,
 		}
-		if producer := artifactTask.GetProducer(); producer != nil {
+		if producer := artifactTask.GetProducer(); !key.staticCollection && producer != nil {
 			key.producerTask = producer.GetTaskName()
 			// Only split by iteration for ITERATOR_OUTPUT; ordinary outputs
 			// consolidate all same-key artifacts into a single IOArtifact.
@@ -179,6 +181,9 @@ func (m *MockAPI) hydrateTask(task *apiv2beta1.PipelineTask) *apiv2beta1.Pipelin
 			if left.ioType != right.ioType {
 				return left.ioType < right.ioType
 			}
+			if left.staticCollection != right.staticCollection {
+				return !left.staticCollection && right.staticCollection
+			}
 			if left.producerTask != right.producerTask {
 				return left.producerTask < right.producerTask
 			}
@@ -190,6 +195,17 @@ func (m *MockAPI) hydrateTask(task *apiv2beta1.PipelineTask) *apiv2beta1.Pipelin
 		out := make([]*apiv2beta1.PipelineTask_InputOutputs_IOArtifact, 0, len(keys))
 		for _, key := range keys {
 			entries := grouped[key]
+			sort.SliceStable(entries, func(i, j int) bool {
+				left := entries[i].task
+				right := entries[j].task
+				if left.CollectionPosition == nil {
+					return right.CollectionPosition != nil
+				}
+				if right.CollectionPosition == nil {
+					return false
+				}
+				return left.GetCollectionPosition() < right.GetCollectionPosition()
+			})
 			artifacts := make([]*apiv2beta1.Artifact, 0, len(entries))
 			for _, entry := range entries {
 				artifacts = append(artifacts, entry.artifact)
@@ -199,7 +215,9 @@ func (m *MockAPI) hydrateTask(task *apiv2beta1.PipelineTask) *apiv2beta1.Pipelin
 				Artifacts:   artifacts,
 				ArtifactKey: first.GetKey(),
 				Type:        first.GetType(),
-				Producer:    first.GetProducer(),
+			}
+			if !key.staticCollection {
+				ioArtifact.Producer = first.GetProducer()
 			}
 			out = append(out, ioArtifact)
 		}

@@ -21,6 +21,9 @@ type V2beta1ArtifactTask struct {
 	// artifact id
 	ArtifactID string `json:"artifact_id,omitempty"`
 
+	// Position within an explicitly ordered artifact collection.
+	CollectionPosition string `json:"collection_position,omitempty"`
+
 	// Output only. The unique server generated id of the ArtifactTask.
 	// Read Only: true
 	ID string `json:"id,omitempty"`

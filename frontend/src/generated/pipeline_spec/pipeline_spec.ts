@@ -278,8 +278,9 @@ export interface ComponentInputsSpec_ParameterSpec {
    */
   description: string;
   /**
-   * The list of allowed values for this parameter.
-   * If this list is non-empty, the value must be one of the values in the list.
+   * Optional field. If non-empty, specifies that this parameter accepts
+   * only the values in this list (Literal parameter constraint).
+   * The parameter value must match one of these literal values exactly.
    */
   literals: any[];
 }
@@ -386,6 +387,8 @@ export interface TaskInputsSpec_InputArtifactSpec {
   taskOutputArtifact: TaskInputsSpec_InputArtifactSpec_TaskOutputArtifactSpec | undefined;
   /** Pass the input artifact from parent component input artifact. */
   componentInputArtifact: string | undefined;
+  /** Pass an ordered list of artifact inputs. */
+  artifactList: TaskInputsSpec_InputArtifactSpec_ArtifactListSpec | undefined;
 }
 
 export interface TaskInputsSpec_InputArtifactSpec_TaskOutputArtifactSpec {
@@ -396,6 +399,19 @@ export interface TaskInputsSpec_InputArtifactSpec_TaskOutputArtifactSpec {
   producerTask: string;
   /** The key of [TaskOutputsSpec.artifacts][] map of the producer task. */
   outputArtifactKey: string;
+}
+
+/** A scalar artifact reference within an ordered artifact list. */
+export interface TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec {
+  /** Pass an output artifact from an upstream task. */
+  taskOutputArtifact: TaskInputsSpec_InputArtifactSpec_TaskOutputArtifactSpec | undefined;
+  /** Pass an input artifact from the parent component. */
+  componentInputArtifact: string | undefined;
+}
+
+/** Aggregates scalar artifact inputs into a single ordered artifact list. */
+export interface TaskInputsSpec_InputArtifactSpec_ArtifactListSpec {
+  items: TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec[];
 }
 
 /**
@@ -413,6 +429,8 @@ export interface TaskInputsSpec_InputParameterSpec {
   componentInputParameter: string | undefined;
   /** The final status of an upstream task. */
   taskFinalStatus: TaskInputsSpec_InputParameterSpec_TaskFinalStatus | undefined;
+  /** Pass an ordered list of parameter inputs. */
+  parameterList: TaskInputsSpec_InputParameterSpec_ParameterListSpec | undefined;
   /**
    * Selector expression of Common Expression Language (CEL)
    * that applies to the parameter found from above kind.
@@ -462,6 +480,21 @@ export interface TaskInputsSpec_InputParameterSpec_TaskOutputParameterSpec {
 export interface TaskInputsSpec_InputParameterSpec_TaskFinalStatus {
   /** The name of the upstream task where the final status is coming from. */
   producerTask: string;
+}
+
+/** A scalar parameter reference within an ordered parameter list. */
+export interface TaskInputsSpec_InputParameterSpec_ParameterListItemSpec {
+  /** Pass an output parameter from an upstream task. */
+  taskOutputParameter: TaskInputsSpec_InputParameterSpec_TaskOutputParameterSpec | undefined;
+  /** Pass an input parameter from the parent component. */
+  componentInputParameter: string | undefined;
+  /** Selector expression applied before appending this item to the list. */
+  parameterExpressionSelector: string;
+}
+
+/** Aggregates scalar parameter inputs into a single ordered list. */
+export interface TaskInputsSpec_InputParameterSpec_ParameterListSpec {
+  items: TaskInputsSpec_InputParameterSpec_ParameterListItemSpec[];
 }
 
 export interface TaskInputsSpec_ParametersEntry {
@@ -745,6 +778,8 @@ export enum TaskConfigPassthroughType_TaskConfigPassthroughTypeEnum {
    * (e.g. dsl.Model) that is created by the external workload.
    */
   KUBERNETES_VOLUMES = 6,
+  /** KUBERNETES_RESOURCE_CLAIMS - Indicates that DRA resource claims should be passed through to the external workload. */
+  KUBERNETES_RESOURCE_CLAIMS = 7,
   UNRECOGNIZED = -1,
 }
 
@@ -773,6 +808,9 @@ export function taskConfigPassthroughType_TaskConfigPassthroughTypeEnumFromJSON(
     case 6:
     case 'KUBERNETES_VOLUMES':
       return TaskConfigPassthroughType_TaskConfigPassthroughTypeEnum.KUBERNETES_VOLUMES;
+    case 7:
+    case 'KUBERNETES_RESOURCE_CLAIMS':
+      return TaskConfigPassthroughType_TaskConfigPassthroughTypeEnum.KUBERNETES_RESOURCE_CLAIMS;
     case -1:
     case 'UNRECOGNIZED':
     default:
@@ -798,6 +836,8 @@ export function taskConfigPassthroughType_TaskConfigPassthroughTypeEnumToJSON(
       return 'KUBERNETES_NODE_SELECTOR';
     case TaskConfigPassthroughType_TaskConfigPassthroughTypeEnum.KUBERNETES_VOLUMES:
       return 'KUBERNETES_VOLUMES';
+    case TaskConfigPassthroughType_TaskConfigPassthroughTypeEnum.KUBERNETES_RESOURCE_CLAIMS:
+      return 'KUBERNETES_RESOURCE_CLAIMS';
     default:
       return 'UNKNOWN';
   }
@@ -846,7 +886,11 @@ export interface PipelineTaskSpec_CachingOptions {
   enableCache: boolean;
   /**
    * Customized cache key for this task. If set, the cache_key will be used
-   * as the key for the task's cache.
+   * as the key for the task's cache. The customized cache key is combined
+   * with component reference identity (e.g. name) to prevent cross-component
+   * cache collisions. When a custom cache key is provided, all automatic
+   * inputs, base image, command, arguments, and PVC names are ignored during
+   * cache key generation.
    */
   cacheKey: string;
 }
@@ -947,10 +991,70 @@ export interface PipelineTaskSpec_RetryPolicy {
   backoffFactor: number;
   /**
    * The maximum duration during which the task will be retried according to
-   * the backoff strategy. Max allowed is 1 hour - higher value will be capped
-   * to this limit. If unspecified, will set to 1 hour.
+   * the backoff strategy. If unspecified, will set to 1 hour.
    */
   backoffMaxDuration: Duration | undefined;
+  policy: PipelineTaskSpec_RetryPolicy_Policy;
+}
+
+/**
+ * The retry policy controls which failure types trigger a retry attempt.
+ * Maps directly to Argo Workflows retryStrategy.retryPolicy.
+ * POLICY_UNSPECIFIED omits the field, so the deployment's Argo
+ * configuration decides; KFP's bundled manifests set OnError.
+ */
+export enum PipelineTaskSpec_RetryPolicy_Policy {
+  POLICY_UNSPECIFIED = 0,
+  POLICY_ALWAYS = 1,
+  POLICY_ON_FAILURE = 2,
+  POLICY_ON_ERROR = 3,
+  POLICY_ON_TRANSIENT_ERROR = 4,
+  UNRECOGNIZED = -1,
+}
+
+export function pipelineTaskSpec_RetryPolicy_PolicyFromJSON(
+  object: any,
+): PipelineTaskSpec_RetryPolicy_Policy {
+  switch (object) {
+    case 0:
+    case 'POLICY_UNSPECIFIED':
+      return PipelineTaskSpec_RetryPolicy_Policy.POLICY_UNSPECIFIED;
+    case 1:
+    case 'POLICY_ALWAYS':
+      return PipelineTaskSpec_RetryPolicy_Policy.POLICY_ALWAYS;
+    case 2:
+    case 'POLICY_ON_FAILURE':
+      return PipelineTaskSpec_RetryPolicy_Policy.POLICY_ON_FAILURE;
+    case 3:
+    case 'POLICY_ON_ERROR':
+      return PipelineTaskSpec_RetryPolicy_Policy.POLICY_ON_ERROR;
+    case 4:
+    case 'POLICY_ON_TRANSIENT_ERROR':
+      return PipelineTaskSpec_RetryPolicy_Policy.POLICY_ON_TRANSIENT_ERROR;
+    case -1:
+    case 'UNRECOGNIZED':
+    default:
+      return PipelineTaskSpec_RetryPolicy_Policy.UNRECOGNIZED;
+  }
+}
+
+export function pipelineTaskSpec_RetryPolicy_PolicyToJSON(
+  object: PipelineTaskSpec_RetryPolicy_Policy,
+): string {
+  switch (object) {
+    case PipelineTaskSpec_RetryPolicy_Policy.POLICY_UNSPECIFIED:
+      return 'POLICY_UNSPECIFIED';
+    case PipelineTaskSpec_RetryPolicy_Policy.POLICY_ALWAYS:
+      return 'POLICY_ALWAYS';
+    case PipelineTaskSpec_RetryPolicy_Policy.POLICY_ON_FAILURE:
+      return 'POLICY_ON_FAILURE';
+    case PipelineTaskSpec_RetryPolicy_Policy.POLICY_ON_ERROR:
+      return 'POLICY_ON_ERROR';
+    case PipelineTaskSpec_RetryPolicy_Policy.POLICY_ON_TRANSIENT_ERROR:
+      return 'POLICY_ON_TRANSIENT_ERROR';
+    default:
+      return 'UNKNOWN';
+  }
 }
 
 /** Iterator related settings. */
@@ -1429,6 +1533,8 @@ export interface RuntimeArtifact {
   metadata: { [key: string]: any } | undefined;
   /** Custom path for output artifact. */
   customPath?: string | undefined;
+  /** The unique server generated id of the artifact. */
+  artifactId: string;
 }
 
 export interface RuntimeArtifact_PropertiesEntry {
@@ -1805,15 +1911,36 @@ export interface KubernetesWorkspaceConfig {
 /** Spec for pipeline-level config options. See PipelineConfig DSL class. */
 export interface PipelineConfig {
   /**
-   * Time to live configuration after the pipeline run is completed for
-   * ephemeral resources created by the pipeline run.
+   * Seconds to retain the Argo Workflow object after the run completes,
+   * regardless of success or failure.  Maps to Argo's
+   * TTLStrategy.secondsAfterCompletion.  A value of 0 or unset means no TTL
+   * is applied by this field.
    */
-  resourceTtl: number;
+  resourceTtlOnCompletion: number;
   /**
    * Configuration for a shared storage workspace that persists for the duration of the pipeline run.
    * The workspace can be configured with size and Kubernetes-specific settings to override default PVC configurations.
    */
   workspace?: WorkspaceConfig | undefined;
+  /**
+   * Seconds to retain the Argo Workflow object after a *successful* run.
+   * Maps to Argo's TTLStrategy.secondsAfterSuccess.  Takes precedence over
+   * resource_ttl_on_completion for successful runs when both are set.
+   */
+  resourceTtlOnSuccess: number;
+  /**
+   * Seconds to retain the Argo Workflow object after a *failed* run.
+   * Maps to Argo's TTLStrategy.secondsAfterFailure.  Takes precedence over
+   * resource_ttl_on_completion for failed runs when both are set.
+   */
+  resourceTtlOnFailure: number;
+  /**
+   * Maximum number of seconds a workflow is allowed to run before it is
+   * forcibly terminated.  Maps to Argo's activeDeadlineSeconds.  A value
+   * of 0 (proto default) means no deadline is applied.  Set a positive
+   * value to enforce a maximum execution time.
+   */
+  activeDeadlineSeconds: number;
 }
 
 const basePipelineJob: object = { name: '', displayName: '' };
@@ -4928,6 +5055,12 @@ export const TaskInputsSpec_InputArtifactSpec = {
     if (message.componentInputArtifact !== undefined) {
       writer.uint32(34).string(message.componentInputArtifact);
     }
+    if (message.artifactList !== undefined) {
+      TaskInputsSpec_InputArtifactSpec_ArtifactListSpec.encode(
+        message.artifactList,
+        writer.uint32(50).fork(),
+      ).ldelim();
+    }
     return writer;
   },
 
@@ -4944,6 +5077,12 @@ export const TaskInputsSpec_InputArtifactSpec = {
           break;
         case 4:
           message.componentInputArtifact = reader.string();
+          break;
+        case 6:
+          message.artifactList = TaskInputsSpec_InputArtifactSpec_ArtifactListSpec.decode(
+            reader,
+            reader.uint32(),
+          );
           break;
         default:
           reader.skipType(tag & 7);
@@ -4965,6 +5104,10 @@ export const TaskInputsSpec_InputArtifactSpec = {
       object.componentInputArtifact !== undefined && object.componentInputArtifact !== null
         ? String(object.componentInputArtifact)
         : undefined;
+    message.artifactList =
+      object.artifactList !== undefined && object.artifactList !== null
+        ? TaskInputsSpec_InputArtifactSpec_ArtifactListSpec.fromJSON(object.artifactList)
+        : undefined;
     return message;
   },
 
@@ -4976,6 +5119,10 @@ export const TaskInputsSpec_InputArtifactSpec = {
         : undefined);
     message.componentInputArtifact !== undefined &&
       (obj.componentInputArtifact = message.componentInputArtifact);
+    message.artifactList !== undefined &&
+      (obj.artifactList = message.artifactList
+        ? TaskInputsSpec_InputArtifactSpec_ArtifactListSpec.toJSON(message.artifactList)
+        : undefined);
     return obj;
   },
 
@@ -4990,6 +5137,10 @@ export const TaskInputsSpec_InputArtifactSpec = {
           )
         : undefined;
     message.componentInputArtifact = object.componentInputArtifact ?? undefined;
+    message.artifactList =
+      object.artifactList !== undefined && object.artifactList !== null
+        ? TaskInputsSpec_InputArtifactSpec_ArtifactListSpec.fromPartial(object.artifactList)
+        : undefined;
     return message;
   },
 };
@@ -5073,6 +5224,175 @@ export const TaskInputsSpec_InputArtifactSpec_TaskOutputArtifactSpec = {
   },
 };
 
+const baseTaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec: object = {};
+
+export const TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec = {
+  encode(
+    message: TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec,
+    writer: _m0.Writer = _m0.Writer.create(),
+  ): _m0.Writer {
+    if (message.taskOutputArtifact !== undefined) {
+      TaskInputsSpec_InputArtifactSpec_TaskOutputArtifactSpec.encode(
+        message.taskOutputArtifact,
+        writer.uint32(10).fork(),
+      ).ldelim();
+    }
+    if (message.componentInputArtifact !== undefined) {
+      writer.uint32(18).string(message.componentInputArtifact);
+    }
+    return writer;
+  },
+
+  decode(
+    input: _m0.Reader | Uint8Array,
+    length?: number,
+  ): TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseTaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec,
+    } as TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.taskOutputArtifact =
+            TaskInputsSpec_InputArtifactSpec_TaskOutputArtifactSpec.decode(reader, reader.uint32());
+          break;
+        case 2:
+          message.componentInputArtifact = reader.string();
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec {
+    const message = {
+      ...baseTaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec,
+    } as TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec;
+    message.taskOutputArtifact =
+      object.taskOutputArtifact !== undefined && object.taskOutputArtifact !== null
+        ? TaskInputsSpec_InputArtifactSpec_TaskOutputArtifactSpec.fromJSON(
+            object.taskOutputArtifact,
+          )
+        : undefined;
+    message.componentInputArtifact =
+      object.componentInputArtifact !== undefined && object.componentInputArtifact !== null
+        ? String(object.componentInputArtifact)
+        : undefined;
+    return message;
+  },
+
+  toJSON(message: TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec): unknown {
+    const obj: any = {};
+    message.taskOutputArtifact !== undefined &&
+      (obj.taskOutputArtifact = message.taskOutputArtifact
+        ? TaskInputsSpec_InputArtifactSpec_TaskOutputArtifactSpec.toJSON(message.taskOutputArtifact)
+        : undefined);
+    message.componentInputArtifact !== undefined &&
+      (obj.componentInputArtifact = message.componentInputArtifact);
+    return obj;
+  },
+
+  fromPartial<
+    I extends Exact<DeepPartial<TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec>, I>,
+  >(object: I): TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec {
+    const message = {
+      ...baseTaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec,
+    } as TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec;
+    message.taskOutputArtifact =
+      object.taskOutputArtifact !== undefined && object.taskOutputArtifact !== null
+        ? TaskInputsSpec_InputArtifactSpec_TaskOutputArtifactSpec.fromPartial(
+            object.taskOutputArtifact,
+          )
+        : undefined;
+    message.componentInputArtifact = object.componentInputArtifact ?? undefined;
+    return message;
+  },
+};
+
+const baseTaskInputsSpec_InputArtifactSpec_ArtifactListSpec: object = {};
+
+export const TaskInputsSpec_InputArtifactSpec_ArtifactListSpec = {
+  encode(
+    message: TaskInputsSpec_InputArtifactSpec_ArtifactListSpec,
+    writer: _m0.Writer = _m0.Writer.create(),
+  ): _m0.Writer {
+    for (const v of message.items) {
+      TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec.encode(
+        v!,
+        writer.uint32(10).fork(),
+      ).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: _m0.Reader | Uint8Array,
+    length?: number,
+  ): TaskInputsSpec_InputArtifactSpec_ArtifactListSpec {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseTaskInputsSpec_InputArtifactSpec_ArtifactListSpec,
+    } as TaskInputsSpec_InputArtifactSpec_ArtifactListSpec;
+    message.items = [];
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.items.push(
+            TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec.decode(reader, reader.uint32()),
+          );
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): TaskInputsSpec_InputArtifactSpec_ArtifactListSpec {
+    const message = {
+      ...baseTaskInputsSpec_InputArtifactSpec_ArtifactListSpec,
+    } as TaskInputsSpec_InputArtifactSpec_ArtifactListSpec;
+    message.items = (object.items ?? []).map((e: any) =>
+      TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec.fromJSON(e),
+    );
+    return message;
+  },
+
+  toJSON(message: TaskInputsSpec_InputArtifactSpec_ArtifactListSpec): unknown {
+    const obj: any = {};
+    if (message.items) {
+      obj.items = message.items.map((e) =>
+        e ? TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec.toJSON(e) : undefined,
+      );
+    } else {
+      obj.items = [];
+    }
+    return obj;
+  },
+
+  fromPartial<I extends Exact<DeepPartial<TaskInputsSpec_InputArtifactSpec_ArtifactListSpec>, I>>(
+    object: I,
+  ): TaskInputsSpec_InputArtifactSpec_ArtifactListSpec {
+    const message = {
+      ...baseTaskInputsSpec_InputArtifactSpec_ArtifactListSpec,
+    } as TaskInputsSpec_InputArtifactSpec_ArtifactListSpec;
+    message.items =
+      object.items?.map((e) =>
+        TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec.fromPartial(e),
+      ) || [];
+    return message;
+  },
+};
+
 const baseTaskInputsSpec_InputParameterSpec: object = { parameterExpressionSelector: '' };
 
 export const TaskInputsSpec_InputParameterSpec = {
@@ -5096,6 +5416,12 @@ export const TaskInputsSpec_InputParameterSpec = {
       TaskInputsSpec_InputParameterSpec_TaskFinalStatus.encode(
         message.taskFinalStatus,
         writer.uint32(42).fork(),
+      ).ldelim();
+    }
+    if (message.parameterList !== undefined) {
+      TaskInputsSpec_InputParameterSpec_ParameterListSpec.encode(
+        message.parameterList,
+        writer.uint32(50).fork(),
       ).ldelim();
     }
     if (message.parameterExpressionSelector !== '') {
@@ -5128,6 +5454,12 @@ export const TaskInputsSpec_InputParameterSpec = {
           break;
         case 5:
           message.taskFinalStatus = TaskInputsSpec_InputParameterSpec_TaskFinalStatus.decode(
+            reader,
+            reader.uint32(),
+          );
+          break;
+        case 6:
+          message.parameterList = TaskInputsSpec_InputParameterSpec_ParameterListSpec.decode(
             reader,
             reader.uint32(),
           );
@@ -5165,6 +5497,10 @@ export const TaskInputsSpec_InputParameterSpec = {
       object.taskFinalStatus !== undefined && object.taskFinalStatus !== null
         ? TaskInputsSpec_InputParameterSpec_TaskFinalStatus.fromJSON(object.taskFinalStatus)
         : undefined;
+    message.parameterList =
+      object.parameterList !== undefined && object.parameterList !== null
+        ? TaskInputsSpec_InputParameterSpec_ParameterListSpec.fromJSON(object.parameterList)
+        : undefined;
     message.parameterExpressionSelector =
       object.parameterExpressionSelector !== undefined &&
       object.parameterExpressionSelector !== null
@@ -5191,6 +5527,10 @@ export const TaskInputsSpec_InputParameterSpec = {
       (obj.taskFinalStatus = message.taskFinalStatus
         ? TaskInputsSpec_InputParameterSpec_TaskFinalStatus.toJSON(message.taskFinalStatus)
         : undefined);
+    message.parameterList !== undefined &&
+      (obj.parameterList = message.parameterList
+        ? TaskInputsSpec_InputParameterSpec_ParameterListSpec.toJSON(message.parameterList)
+        : undefined);
     message.parameterExpressionSelector !== undefined &&
       (obj.parameterExpressionSelector = message.parameterExpressionSelector);
     return obj;
@@ -5216,6 +5556,10 @@ export const TaskInputsSpec_InputParameterSpec = {
     message.taskFinalStatus =
       object.taskFinalStatus !== undefined && object.taskFinalStatus !== null
         ? TaskInputsSpec_InputParameterSpec_TaskFinalStatus.fromPartial(object.taskFinalStatus)
+        : undefined;
+    message.parameterList =
+      object.parameterList !== undefined && object.parameterList !== null
+        ? TaskInputsSpec_InputParameterSpec_ParameterListSpec.fromPartial(object.parameterList)
         : undefined;
     message.parameterExpressionSelector = object.parameterExpressionSelector ?? '';
     return message;
@@ -5362,6 +5706,196 @@ export const TaskInputsSpec_InputParameterSpec_TaskFinalStatus = {
       ...baseTaskInputsSpec_InputParameterSpec_TaskFinalStatus,
     } as TaskInputsSpec_InputParameterSpec_TaskFinalStatus;
     message.producerTask = object.producerTask ?? '';
+    return message;
+  },
+};
+
+const baseTaskInputsSpec_InputParameterSpec_ParameterListItemSpec: object = {
+  parameterExpressionSelector: '',
+};
+
+export const TaskInputsSpec_InputParameterSpec_ParameterListItemSpec = {
+  encode(
+    message: TaskInputsSpec_InputParameterSpec_ParameterListItemSpec,
+    writer: _m0.Writer = _m0.Writer.create(),
+  ): _m0.Writer {
+    if (message.taskOutputParameter !== undefined) {
+      TaskInputsSpec_InputParameterSpec_TaskOutputParameterSpec.encode(
+        message.taskOutputParameter,
+        writer.uint32(10).fork(),
+      ).ldelim();
+    }
+    if (message.componentInputParameter !== undefined) {
+      writer.uint32(18).string(message.componentInputParameter);
+    }
+    if (message.parameterExpressionSelector !== '') {
+      writer.uint32(26).string(message.parameterExpressionSelector);
+    }
+    return writer;
+  },
+
+  decode(
+    input: _m0.Reader | Uint8Array,
+    length?: number,
+  ): TaskInputsSpec_InputParameterSpec_ParameterListItemSpec {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseTaskInputsSpec_InputParameterSpec_ParameterListItemSpec,
+    } as TaskInputsSpec_InputParameterSpec_ParameterListItemSpec;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.taskOutputParameter =
+            TaskInputsSpec_InputParameterSpec_TaskOutputParameterSpec.decode(
+              reader,
+              reader.uint32(),
+            );
+          break;
+        case 2:
+          message.componentInputParameter = reader.string();
+          break;
+        case 3:
+          message.parameterExpressionSelector = reader.string();
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): TaskInputsSpec_InputParameterSpec_ParameterListItemSpec {
+    const message = {
+      ...baseTaskInputsSpec_InputParameterSpec_ParameterListItemSpec,
+    } as TaskInputsSpec_InputParameterSpec_ParameterListItemSpec;
+    message.taskOutputParameter =
+      object.taskOutputParameter !== undefined && object.taskOutputParameter !== null
+        ? TaskInputsSpec_InputParameterSpec_TaskOutputParameterSpec.fromJSON(
+            object.taskOutputParameter,
+          )
+        : undefined;
+    message.componentInputParameter =
+      object.componentInputParameter !== undefined && object.componentInputParameter !== null
+        ? String(object.componentInputParameter)
+        : undefined;
+    message.parameterExpressionSelector =
+      object.parameterExpressionSelector !== undefined &&
+      object.parameterExpressionSelector !== null
+        ? String(object.parameterExpressionSelector)
+        : '';
+    return message;
+  },
+
+  toJSON(message: TaskInputsSpec_InputParameterSpec_ParameterListItemSpec): unknown {
+    const obj: any = {};
+    message.taskOutputParameter !== undefined &&
+      (obj.taskOutputParameter = message.taskOutputParameter
+        ? TaskInputsSpec_InputParameterSpec_TaskOutputParameterSpec.toJSON(
+            message.taskOutputParameter,
+          )
+        : undefined);
+    message.componentInputParameter !== undefined &&
+      (obj.componentInputParameter = message.componentInputParameter);
+    message.parameterExpressionSelector !== undefined &&
+      (obj.parameterExpressionSelector = message.parameterExpressionSelector);
+    return obj;
+  },
+
+  fromPartial<
+    I extends Exact<DeepPartial<TaskInputsSpec_InputParameterSpec_ParameterListItemSpec>, I>,
+  >(object: I): TaskInputsSpec_InputParameterSpec_ParameterListItemSpec {
+    const message = {
+      ...baseTaskInputsSpec_InputParameterSpec_ParameterListItemSpec,
+    } as TaskInputsSpec_InputParameterSpec_ParameterListItemSpec;
+    message.taskOutputParameter =
+      object.taskOutputParameter !== undefined && object.taskOutputParameter !== null
+        ? TaskInputsSpec_InputParameterSpec_TaskOutputParameterSpec.fromPartial(
+            object.taskOutputParameter,
+          )
+        : undefined;
+    message.componentInputParameter = object.componentInputParameter ?? undefined;
+    message.parameterExpressionSelector = object.parameterExpressionSelector ?? '';
+    return message;
+  },
+};
+
+const baseTaskInputsSpec_InputParameterSpec_ParameterListSpec: object = {};
+
+export const TaskInputsSpec_InputParameterSpec_ParameterListSpec = {
+  encode(
+    message: TaskInputsSpec_InputParameterSpec_ParameterListSpec,
+    writer: _m0.Writer = _m0.Writer.create(),
+  ): _m0.Writer {
+    for (const v of message.items) {
+      TaskInputsSpec_InputParameterSpec_ParameterListItemSpec.encode(
+        v!,
+        writer.uint32(10).fork(),
+      ).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: _m0.Reader | Uint8Array,
+    length?: number,
+  ): TaskInputsSpec_InputParameterSpec_ParameterListSpec {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseTaskInputsSpec_InputParameterSpec_ParameterListSpec,
+    } as TaskInputsSpec_InputParameterSpec_ParameterListSpec;
+    message.items = [];
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.items.push(
+            TaskInputsSpec_InputParameterSpec_ParameterListItemSpec.decode(reader, reader.uint32()),
+          );
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): TaskInputsSpec_InputParameterSpec_ParameterListSpec {
+    const message = {
+      ...baseTaskInputsSpec_InputParameterSpec_ParameterListSpec,
+    } as TaskInputsSpec_InputParameterSpec_ParameterListSpec;
+    message.items = (object.items ?? []).map((e: any) =>
+      TaskInputsSpec_InputParameterSpec_ParameterListItemSpec.fromJSON(e),
+    );
+    return message;
+  },
+
+  toJSON(message: TaskInputsSpec_InputParameterSpec_ParameterListSpec): unknown {
+    const obj: any = {};
+    if (message.items) {
+      obj.items = message.items.map((e) =>
+        e ? TaskInputsSpec_InputParameterSpec_ParameterListItemSpec.toJSON(e) : undefined,
+      );
+    } else {
+      obj.items = [];
+    }
+    return obj;
+  },
+
+  fromPartial<I extends Exact<DeepPartial<TaskInputsSpec_InputParameterSpec_ParameterListSpec>, I>>(
+    object: I,
+  ): TaskInputsSpec_InputParameterSpec_ParameterListSpec {
+    const message = {
+      ...baseTaskInputsSpec_InputParameterSpec_ParameterListSpec,
+    } as TaskInputsSpec_InputParameterSpec_ParameterListSpec;
+    message.items =
+      object.items?.map((e) =>
+        TaskInputsSpec_InputParameterSpec_ParameterListItemSpec.fromPartial(e),
+      ) || [];
     return message;
   },
 };
@@ -6635,7 +7169,7 @@ export const PipelineTaskSpec_TriggerPolicy = {
   },
 };
 
-const basePipelineTaskSpec_RetryPolicy: object = { maxRetryCount: 0, backoffFactor: 0 };
+const basePipelineTaskSpec_RetryPolicy: object = { maxRetryCount: 0, backoffFactor: 0, policy: 0 };
 
 export const PipelineTaskSpec_RetryPolicy = {
   encode(
@@ -6653,6 +7187,9 @@ export const PipelineTaskSpec_RetryPolicy = {
     }
     if (message.backoffMaxDuration !== undefined) {
       Duration.encode(message.backoffMaxDuration, writer.uint32(34).fork()).ldelim();
+    }
+    if (message.policy !== 0) {
+      writer.uint32(40).int32(message.policy);
     }
     return writer;
   },
@@ -6675,6 +7212,9 @@ export const PipelineTaskSpec_RetryPolicy = {
           break;
         case 4:
           message.backoffMaxDuration = Duration.decode(reader, reader.uint32());
+          break;
+        case 5:
+          message.policy = reader.int32() as any;
           break;
         default:
           reader.skipType(tag & 7);
@@ -6702,6 +7242,10 @@ export const PipelineTaskSpec_RetryPolicy = {
       object.backoffMaxDuration !== undefined && object.backoffMaxDuration !== null
         ? Duration.fromJSON(object.backoffMaxDuration)
         : undefined;
+    message.policy =
+      object.policy !== undefined && object.policy !== null
+        ? pipelineTaskSpec_RetryPolicy_PolicyFromJSON(object.policy)
+        : 0;
     return message;
   },
 
@@ -6717,6 +7261,8 @@ export const PipelineTaskSpec_RetryPolicy = {
       (obj.backoffMaxDuration = message.backoffMaxDuration
         ? Duration.toJSON(message.backoffMaxDuration)
         : undefined);
+    message.policy !== undefined &&
+      (obj.policy = pipelineTaskSpec_RetryPolicy_PolicyToJSON(message.policy));
     return obj;
   },
 
@@ -6734,6 +7280,7 @@ export const PipelineTaskSpec_RetryPolicy = {
       object.backoffMaxDuration !== undefined && object.backoffMaxDuration !== null
         ? Duration.fromPartial(object.backoffMaxDuration)
         : undefined;
+    message.policy = object.policy ?? 0;
     return message;
   },
 };
@@ -9093,7 +9640,7 @@ export const Value = {
   },
 };
 
-const baseRuntimeArtifact: object = { name: '', uri: '' };
+const baseRuntimeArtifact: object = { name: '', uri: '', artifactId: '' };
 
 export const RuntimeArtifact = {
   encode(message: RuntimeArtifact, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
@@ -9123,6 +9670,9 @@ export const RuntimeArtifact = {
     }
     if (message.customPath !== undefined) {
       writer.uint32(58).string(message.customPath);
+    }
+    if (message.artifactId !== '') {
+      writer.uint32(66).string(message.artifactId);
     }
     return writer;
   },
@@ -9163,6 +9713,9 @@ export const RuntimeArtifact = {
         case 7:
           message.customPath = reader.string();
           break;
+        case 8:
+          message.artifactId = reader.string();
+          break;
         default:
           reader.skipType(tag & 7);
           break;
@@ -9197,6 +9750,10 @@ export const RuntimeArtifact = {
       object.customPath !== undefined && object.customPath !== null
         ? String(object.customPath)
         : undefined;
+    message.artifactId =
+      object.artifactId !== undefined && object.artifactId !== null
+        ? String(object.artifactId)
+        : '';
     return message;
   },
 
@@ -9220,6 +9777,7 @@ export const RuntimeArtifact = {
     }
     message.metadata !== undefined && (obj.metadata = message.metadata);
     message.customPath !== undefined && (obj.customPath = message.customPath);
+    message.artifactId !== undefined && (obj.artifactId = message.artifactId);
     return obj;
   },
 
@@ -9250,6 +9808,7 @@ export const RuntimeArtifact = {
     }, {});
     message.metadata = object.metadata ?? undefined;
     message.customPath = object.customPath ?? undefined;
+    message.artifactId = object.artifactId ?? '';
     return message;
   },
 };
@@ -11192,15 +11751,29 @@ export const KubernetesWorkspaceConfig = {
   },
 };
 
-const basePipelineConfig: object = { resourceTtl: 0 };
+const basePipelineConfig: object = {
+  resourceTtlOnCompletion: 0,
+  resourceTtlOnSuccess: 0,
+  resourceTtlOnFailure: 0,
+  activeDeadlineSeconds: 0,
+};
 
 export const PipelineConfig = {
   encode(message: PipelineConfig, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.resourceTtl !== 0) {
-      writer.uint32(8).int32(message.resourceTtl);
+    if (message.resourceTtlOnCompletion !== 0) {
+      writer.uint32(8).int32(message.resourceTtlOnCompletion);
     }
     if (message.workspace !== undefined) {
       WorkspaceConfig.encode(message.workspace, writer.uint32(18).fork()).ldelim();
+    }
+    if (message.resourceTtlOnSuccess !== 0) {
+      writer.uint32(24).int32(message.resourceTtlOnSuccess);
+    }
+    if (message.resourceTtlOnFailure !== 0) {
+      writer.uint32(32).int32(message.resourceTtlOnFailure);
+    }
+    if (message.activeDeadlineSeconds !== 0) {
+      writer.uint32(40).int32(message.activeDeadlineSeconds);
     }
     return writer;
   },
@@ -11213,10 +11786,19 @@ export const PipelineConfig = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.resourceTtl = reader.int32();
+          message.resourceTtlOnCompletion = reader.int32();
           break;
         case 2:
           message.workspace = WorkspaceConfig.decode(reader, reader.uint32());
+          break;
+        case 3:
+          message.resourceTtlOnSuccess = reader.int32();
+          break;
+        case 4:
+          message.resourceTtlOnFailure = reader.int32();
+          break;
+        case 5:
+          message.activeDeadlineSeconds = reader.int32();
           break;
         default:
           reader.skipType(tag & 7);
@@ -11228,32 +11810,54 @@ export const PipelineConfig = {
 
   fromJSON(object: any): PipelineConfig {
     const message = { ...basePipelineConfig } as PipelineConfig;
-    message.resourceTtl =
-      object.resourceTtl !== undefined && object.resourceTtl !== null
-        ? Number(object.resourceTtl)
+    message.resourceTtlOnCompletion =
+      object.resourceTtlOnCompletion !== undefined && object.resourceTtlOnCompletion !== null
+        ? Number(object.resourceTtlOnCompletion)
         : 0;
     message.workspace =
       object.workspace !== undefined && object.workspace !== null
         ? WorkspaceConfig.fromJSON(object.workspace)
         : undefined;
+    message.resourceTtlOnSuccess =
+      object.resourceTtlOnSuccess !== undefined && object.resourceTtlOnSuccess !== null
+        ? Number(object.resourceTtlOnSuccess)
+        : 0;
+    message.resourceTtlOnFailure =
+      object.resourceTtlOnFailure !== undefined && object.resourceTtlOnFailure !== null
+        ? Number(object.resourceTtlOnFailure)
+        : 0;
+    message.activeDeadlineSeconds =
+      object.activeDeadlineSeconds !== undefined && object.activeDeadlineSeconds !== null
+        ? Number(object.activeDeadlineSeconds)
+        : 0;
     return message;
   },
 
   toJSON(message: PipelineConfig): unknown {
     const obj: any = {};
-    message.resourceTtl !== undefined && (obj.resourceTtl = Math.round(message.resourceTtl));
+    message.resourceTtlOnCompletion !== undefined &&
+      (obj.resourceTtlOnCompletion = Math.round(message.resourceTtlOnCompletion));
     message.workspace !== undefined &&
       (obj.workspace = message.workspace ? WorkspaceConfig.toJSON(message.workspace) : undefined);
+    message.resourceTtlOnSuccess !== undefined &&
+      (obj.resourceTtlOnSuccess = Math.round(message.resourceTtlOnSuccess));
+    message.resourceTtlOnFailure !== undefined &&
+      (obj.resourceTtlOnFailure = Math.round(message.resourceTtlOnFailure));
+    message.activeDeadlineSeconds !== undefined &&
+      (obj.activeDeadlineSeconds = Math.round(message.activeDeadlineSeconds));
     return obj;
   },
 
   fromPartial<I extends Exact<DeepPartial<PipelineConfig>, I>>(object: I): PipelineConfig {
     const message = { ...basePipelineConfig } as PipelineConfig;
-    message.resourceTtl = object.resourceTtl ?? 0;
+    message.resourceTtlOnCompletion = object.resourceTtlOnCompletion ?? 0;
     message.workspace =
       object.workspace !== undefined && object.workspace !== null
         ? WorkspaceConfig.fromPartial(object.workspace)
         : undefined;
+    message.resourceTtlOnSuccess = object.resourceTtlOnSuccess ?? 0;
+    message.resourceTtlOnFailure = object.resourceTtlOnFailure ?? 0;
+    message.activeDeadlineSeconds = object.activeDeadlineSeconds ?? 0;
     return message;
   },
 };

@@ -1282,6 +1282,51 @@ func TestToModelAndAPITask_LifecycleMessage(t *testing.T) {
 	assert.Nil(t, unset.LifecycleMessage)
 }
 
+func TestToAPITask_PreservesStaticArtifactCollectionOrderAndDuplicates(t *testing.T) {
+	position0 := int64(0)
+	position1 := int64(1)
+	position2 := int64(2)
+	modelTask := &model.Task{
+		UUID:    "task-1",
+		RunUUID: "run-1",
+		InputArtifactsHydrated: []model.TaskArtifactHydrated{
+			{
+				Value:              &model.Artifact{UUID: "artifact-a", Name: "a"},
+				Producer:           &model.IOProducer{TaskName: "producer-a"},
+				Key:                "models",
+				Type:               apiv2beta1.IOType_COLLECTED_INPUTS,
+				CollectionPosition: &position2,
+			},
+			{
+				Value:              &model.Artifact{UUID: "artifact-b", Name: "b"},
+				Producer:           &model.IOProducer{TaskName: "producer-b"},
+				Key:                "models",
+				Type:               apiv2beta1.IOType_COLLECTED_INPUTS,
+				CollectionPosition: &position1,
+			},
+			{
+				Value:              &model.Artifact{UUID: "artifact-a", Name: "a"},
+				Producer:           &model.IOProducer{TaskName: "producer-a"},
+				Key:                "models",
+				Type:               apiv2beta1.IOType_COLLECTED_INPUTS,
+				CollectionPosition: &position0,
+			},
+		},
+	}
+
+	apiTask, err := toAPITask(modelTask, nil)
+	require.NoError(t, err)
+	require.Len(t, apiTask.GetInputs().GetArtifacts(), 1)
+	collection := apiTask.GetInputs().GetArtifacts()[0]
+	assert.Nil(t, collection.GetProducer())
+	require.Len(t, collection.GetArtifacts(), 3)
+	assert.Equal(t, []string{"artifact-a", "artifact-b", "artifact-a"}, []string{
+		collection.GetArtifacts()[0].GetArtifactId(),
+		collection.GetArtifacts()[1].GetArtifactId(),
+		collection.GetArtifacts()[2].GetArtifactId(),
+	})
+}
+
 func TestToModelRun(t *testing.T) {
 	tests := []struct {
 		name    string

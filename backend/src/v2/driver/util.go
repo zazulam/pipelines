@@ -457,17 +457,26 @@ func handleInputTaskArtifactsCreation(
 ) error {
 	var artifactTasks []*apiV2beta1.ArtifactTask
 	for _, am := range artifactMetadata {
-		for _, artifact := range am.ArtifactIO.Artifacts {
+		for index, artifact := range am.ArtifactIO.Artifacts {
 			if artifact.ArtifactId == "" {
 				return fmt.Errorf("artifact id is required")
 			}
+			producer := am.ArtifactIO.Producer
+			if index < len(am.ArtifactProducers) {
+				producer = am.ArtifactProducers[index]
+			}
+			var collectionPosition *int64
+			if index < len(am.CollectionPositions) {
+				collectionPosition = am.CollectionPositions[index]
+			}
 			artifactTasks = append(artifactTasks, &apiV2beta1.ArtifactTask{
-				ArtifactId: artifact.ArtifactId,
-				RunId:      opts.Run.GetRunId(),
-				TaskId:     task.TaskId,
-				Type:       am.ArtifactIO.Type,
-				Producer:   am.ArtifactIO.Producer,
-				Key:        am.ArtifactIO.ArtifactKey,
+				ArtifactId:         artifact.ArtifactId,
+				RunId:              opts.Run.GetRunId(),
+				TaskId:             task.TaskId,
+				Type:               am.ArtifactIO.Type,
+				Producer:           producer,
+				Key:                am.ArtifactIO.ArtifactKey,
+				CollectionPosition: collectionPosition,
 			})
 		}
 	}

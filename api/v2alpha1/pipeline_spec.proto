@@ -287,12 +287,29 @@ message TaskInputsSpec {
       string output_artifact_key = 2;
     }
 
+    // A scalar artifact reference within an ordered artifact list.
+    message ArtifactListItemSpec {
+      oneof kind {
+        // Pass an output artifact from an upstream task.
+        TaskOutputArtifactSpec task_output_artifact = 1;
+        // Pass an input artifact from the parent component.
+        string component_input_artifact = 2;
+      }
+    }
+
+    // Aggregates scalar artifact inputs into a single ordered artifact list.
+    message ArtifactListSpec {
+      repeated ArtifactListItemSpec items = 1;
+    }
+
     oneof kind {
       // Pass the input artifact from another task within the same parent
       // component.
       TaskOutputArtifactSpec task_output_artifact = 3;
       // Pass the input artifact from parent component input artifact.
       string component_input_artifact = 4;
+      // Pass an ordered list of artifact inputs.
+      ArtifactListSpec artifact_list = 6;
     }
     reserved 5;
   }
@@ -320,6 +337,24 @@ message TaskInputsSpec {
       string producer_task = 1;
     }
 
+    // A scalar parameter reference within an ordered parameter list.
+    message ParameterListItemSpec {
+      oneof kind {
+        // Pass an output parameter from an upstream task.
+        TaskOutputParameterSpec task_output_parameter = 1;
+        // Pass an input parameter from the parent component.
+        string component_input_parameter = 2;
+      }
+
+      // Selector expression applied before appending this item to the list.
+      string parameter_expression_selector = 3;
+    }
+
+    // Aggregates scalar parameter inputs into a single ordered list.
+    message ParameterListSpec {
+      repeated ParameterListItemSpec items = 1;
+    }
+
     oneof kind {
       // Output parameter from an upstream task.
       TaskOutputParameterSpec task_output_parameter = 1;
@@ -329,6 +364,8 @@ message TaskInputsSpec {
       string component_input_parameter = 3;
       // The final status of an upstream task.
       TaskFinalStatus task_final_status = 5;
+      // Pass an ordered list of parameter inputs.
+      ParameterListSpec parameter_list = 6;
     }
 
     // Selector expression of Common Expression Language (CEL)

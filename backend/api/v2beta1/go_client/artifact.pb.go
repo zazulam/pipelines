@@ -964,15 +964,17 @@ func (x *IOProducer) GetIteration() int64 {
 type ArtifactTask struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Output only. The unique server generated id of the ArtifactTask.
-	Id            string      `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	ArtifactId    string      `protobuf:"bytes,2,opt,name=artifact_id,json=artifactId,proto3" json:"artifact_id,omitempty"`
-	RunId         string      `protobuf:"bytes,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	TaskId        string      `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	Type          IOType      `protobuf:"varint,5,opt,name=type,proto3,enum=kubeflow.pipelines.backend.api.v2beta1.IOType" json:"type,omitempty"`
-	Producer      *IOProducer `protobuf:"bytes,6,opt,name=producer,proto3" json:"producer,omitempty"`
-	Key           string      `protobuf:"bytes,7,opt,name=key,proto3" json:"key,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Id         string      `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ArtifactId string      `protobuf:"bytes,2,opt,name=artifact_id,json=artifactId,proto3" json:"artifact_id,omitempty"`
+	RunId      string      `protobuf:"bytes,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	TaskId     string      `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Type       IOType      `protobuf:"varint,5,opt,name=type,proto3,enum=kubeflow.pipelines.backend.api.v2beta1.IOType" json:"type,omitempty"`
+	Producer   *IOProducer `protobuf:"bytes,6,opt,name=producer,proto3" json:"producer,omitempty"`
+	Key        string      `protobuf:"bytes,7,opt,name=key,proto3" json:"key,omitempty"`
+	// Position within an explicitly ordered artifact collection.
+	CollectionPosition *int64 `protobuf:"varint,8,opt,name=collection_position,json=collectionPosition,proto3,oneof" json:"collection_position,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ArtifactTask) Reset() {
@@ -1052,6 +1054,13 @@ func (x *ArtifactTask) GetKey() string {
 		return x.Key
 	}
 	return ""
+}
+
+func (x *ArtifactTask) GetCollectionPosition() int64 {
+	if x != nil && x.CollectionPosition != nil {
+		return *x.CollectionPosition
+	}
+	return 0
 }
 
 // V2beta1Artifact
@@ -1235,7 +1244,7 @@ const file_backend_api_v2beta1_artifact_proto_rawDesc = "" +
 	"\ttask_name\x18\x01 \x01(\tR\btaskName\x12!\n" +
 	"\titeration\x18\x02 \x01(\x03H\x00R\titeration\x88\x01\x01B\f\n" +
 	"\n" +
-	"_iteration\"\x95\x02\n" +
+	"_iteration\"\xe3\x02\n" +
 	"\fArtifactTask\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vartifact_id\x18\x02 \x01(\tR\n" +
@@ -1244,7 +1253,9 @@ const file_backend_api_v2beta1_artifact_proto_rawDesc = "" +
 	"\atask_id\x18\x04 \x01(\tR\x06taskId\x12B\n" +
 	"\x04type\x18\x05 \x01(\x0e2..kubeflow.pipelines.backend.api.v2beta1.IOTypeR\x04type\x12N\n" +
 	"\bproducer\x18\x06 \x01(\v22.kubeflow.pipelines.backend.api.v2beta1.IOProducerR\bproducer\x12\x10\n" +
-	"\x03key\x18\a \x01(\tR\x03key\"\xc1\x05\n" +
+	"\x03key\x18\a \x01(\tR\x03key\x124\n" +
+	"\x13collection_position\x18\b \x01(\x03H\x00R\x12collectionPosition\x88\x01\x01B\x16\n" +
+	"\x14_collection_position\"\xc1\x05\n" +
 	"\bArtifact\x12\x1f\n" +
 	"\vartifact_id\x18\x01 \x01(\tR\n" +
 	"artifactId\x12\x12\n" +
@@ -1387,6 +1398,7 @@ func file_backend_api_v2beta1_artifact_proto_init() {
 	}
 	file_backend_api_v2beta1_artifact_proto_msgTypes[0].OneofWrappers = []any{}
 	file_backend_api_v2beta1_artifact_proto_msgTypes[11].OneofWrappers = []any{}
+	file_backend_api_v2beta1_artifact_proto_msgTypes[12].OneofWrappers = []any{}
 	file_backend_api_v2beta1_artifact_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

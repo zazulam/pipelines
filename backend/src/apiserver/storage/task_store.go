@@ -277,6 +277,7 @@ func hydrateArtifactsForTasks(db *sql.DB, tasks []*model.Task, d dialect.DBDiale
 			q("artifact_tasks")+"."+q("Producer"),
 			q("artifact_tasks")+"."+q("ArtifactKey"),
 			q("artifact_tasks")+"."+q("Iteration"),
+			q("artifact_tasks")+"."+q("CollectionPosition"),
 			q("artifacts")+"."+q("UUID"),
 			q("artifacts")+"."+q("Namespace"),
 			q("artifacts")+"."+q("Type"),
@@ -295,6 +296,7 @@ func hydrateArtifactsForTasks(db *sql.DB, tasks []*model.Task, d dialect.DBDiale
 			q("artifact_tasks")+"."+q("TaskID")+" ASC",
 			q("artifact_tasks")+"."+q("Type")+" ASC",
 			q("artifact_tasks")+"."+q("ArtifactKey")+" ASC",
+			q("artifact_tasks")+"."+q("CollectionPosition")+" ASC",
 			q("artifact_tasks")+"."+q("Iteration")+" ASC",
 			q("artifact_tasks")+"."+q("ArtifactID")+" ASC",
 		).
@@ -315,6 +317,7 @@ func hydrateArtifactsForTasks(db *sql.DB, tasks []*model.Task, d dialect.DBDiale
 		var producer sql.NullString
 		var key string
 		var iteration int64
+		var collectionPosition int64
 		var artUUID, artNamespace, artName string
 		var artDescription sql.NullString
 		var artType sql.NullInt32
@@ -322,7 +325,7 @@ func hydrateArtifactsForTasks(db *sql.DB, tasks []*model.Task, d dialect.DBDiale
 		var metadata, artURI sql.NullString
 		var numberValue sql.NullFloat64
 
-		if err := rows.Scan(&taskID, &linkType, &producer, &key, &iteration,
+		if err := rows.Scan(&taskID, &linkType, &producer, &key, &iteration, &collectionPosition,
 			&artUUID, &artNamespace, &artType, &artURI, &artName, &artDescription, &createdAt, &updatedAt, &metadata, &numberValue); err != nil {
 			return err
 		}
@@ -397,6 +400,9 @@ func hydrateArtifactsForTasks(db *sql.DB, tasks []*model.Task, d dialect.DBDiale
 			Producer: producerProto,
 			Key:      key,
 			Type:     apiv2beta1.IOType(linkType.Int32),
+		}
+		if collectionPosition != model.ArtifactTaskNoCollectionPosition {
+			h.CollectionPosition = &collectionPosition
 		}
 
 		isOutput, err := iOTypeIsOutput(apiv2beta1.IOType(linkType.Int32))

@@ -329,6 +329,8 @@ message ArtifactTask {
   IOType type = 5;
   IOProducer producer = 6;
   string key = 7;
+  // Position within an explicitly ordered artifact collection.
+  optional int64 collection_position = 8;
 }
 
 // V2beta1Artifact

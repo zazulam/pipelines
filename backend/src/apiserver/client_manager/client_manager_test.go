@@ -133,6 +133,34 @@ func TestAutoMigrateCreatesTaskUUIDRunUniqueIndex(t *testing.T) {
 	assert.True(t, db.Migrator().HasIndex(&model.Artifact{}, "idx_artifact_identity"))
 }
 
+func TestAutoMigrateUpdatesArtifactTaskUniqueLinkIndex(t *testing.T) {
+	db := getTestSQLite(t)
+	require.NoError(t, autoMigrate(db))
+
+	require.NoError(t, db.Exec("DROP INDEX `UniqueLink`").Error)
+	require.NoError(t, db.Exec(`
+		CREATE UNIQUE INDEX UniqueLink ON artifact_tasks (
+			ArtifactID, TaskID, Type, Iteration, ArtifactKey
+		)
+	`).Error)
+
+	require.NoError(t, autoMigrate(db))
+
+	rows, err := db.Raw("PRAGMA index_info('UniqueLink')").Rows()
+	require.NoError(t, err)
+	defer rows.Close()
+
+	var columns []string
+	for rows.Next() {
+		var sequence int
+		var columnID int
+		var columnName string
+		require.NoError(t, rows.Scan(&sequence, &columnID, &columnName))
+		columns = append(columns, columnName)
+	}
+	assert.Contains(t, columns, "CollectionPosition")
+}
+
 func TestValidateRequiredConfig(t *testing.T) {
 	tests := []struct {
 		name        string

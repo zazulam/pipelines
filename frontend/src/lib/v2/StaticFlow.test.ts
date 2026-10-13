@@ -34,13 +34,92 @@ describe('StaticFlow', () => {
         'artifact.preprocess.output_dataset_two_path',
         'artifact.train.model',
         'outedge.preprocess.output_dataset_one',
-        'inedge.output_dataset_two_path.train',
+        'inedge.preprocess.output_dataset_two_path.train.dataset_two',
         'outedge.preprocess.output_dataset_two_path',
-        'inedge.output_dataset_one.train',
+        'inedge.preprocess.output_dataset_one.train.dataset_one_path',
         'outedge.train.model',
         'paramedge.preprocess.train',
       ].findIndex((x) => x === element.id);
       expect(index > -1).toBeTruthy();
     }
+  });
+
+  it('converts static collections to unique dependency edges', () => {
+    const pipelineSpec = PipelineSpec.fromJSON({
+      root: {
+        dag: {
+          tasks: {
+            trainerA: {
+              taskInfo: { name: 'trainer-a' },
+              componentRef: { name: 'comp-trainer-a' },
+            },
+            trainerB: {
+              taskInfo: { name: 'trainer-b' },
+              componentRef: { name: 'comp-trainer-b' },
+            },
+            evaluator: {
+              taskInfo: { name: 'evaluator' },
+              componentRef: { name: 'comp-evaluator' },
+              inputs: {
+                artifacts: {
+                  models: {
+                    artifactList: {
+                      items: [
+                        {
+                          taskOutputArtifact: {
+                            producerTask: 'trainerA',
+                            outputArtifactKey: 'model',
+                          },
+                        },
+                        {
+                          taskOutputArtifact: {
+                            producerTask: 'trainerB',
+                            outputArtifactKey: 'model',
+                          },
+                        },
+                        {
+                          taskOutputArtifact: {
+                            producerTask: 'trainerA',
+                            outputArtifactKey: 'model',
+                          },
+                        },
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      components: {
+        'comp-trainer-a': {
+          executorLabel: 'trainer-a',
+          outputDefinitions: { artifacts: { model: {} } },
+        },
+        'comp-trainer-b': {
+          executorLabel: 'trainer-b',
+          outputDefinitions: { artifacts: { model: {} } },
+        },
+        'comp-evaluator': {
+          executorLabel: 'evaluator',
+          inputDefinitions: { artifacts: { models: { isArtifactList: true } } },
+        },
+      },
+    });
+
+    const graph = convertFlowElements(pipelineSpec);
+    const collectionEdges = graph.filter((element) => element.id.startsWith('inedge.'));
+
+    expect(collectionEdges).toHaveLength(2);
+    expect(collectionEdges.map((edge) => edge.id)).toEqual(
+      expect.arrayContaining([
+        'inedge.trainerA.model.evaluator.models',
+        'inedge.trainerB.model.evaluator.models',
+      ]),
+    );
+    expect(
+      collectionEdges.find((edge) => edge.id === 'inedge.trainerA.model.evaluator.models')?.data,
+    ).toEqual({ collectionPositions: [0, 2] });
   });
 });

@@ -214,6 +214,78 @@ func TestFindArtifactByProducerKeyInList_OrdersIteratorOutputs(t *testing.T) {
 	assert.Equal(t, "artifact-2", resolved.GetArtifacts()[2].GetArtifactId())
 }
 
+func TestResolveArtifacts_StaticCollectionPreservesOrderAndDuplicates(t *testing.T) {
+	inputArtifact := func(key, artifactID, producer string) *apiv2beta1.PipelineTask_InputOutputs_IOArtifact {
+		return &apiv2beta1.PipelineTask_InputOutputs_IOArtifact{
+			ArtifactKey: key,
+			Type:        apiv2beta1.IOType_TASK_OUTPUT_INPUT,
+			Artifacts:   []*apiv2beta1.Artifact{{ArtifactId: artifactID}},
+			Producer:    &apiv2beta1.IOProducer{TaskName: producer},
+		}
+	}
+	item := func(key string) *pipelinespec.TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec {
+		return &pipelinespec.TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec{
+			Kind: &pipelinespec.TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec_ComponentInputArtifact{
+				ComponentInputArtifact: key,
+			},
+		}
+	}
+
+	opts := common.Options{
+		ParentTask: &apiv2beta1.PipelineTask{
+			Inputs: &apiv2beta1.PipelineTask_InputOutputs{
+				Artifacts: []*apiv2beta1.PipelineTask_InputOutputs_IOArtifact{
+					inputArtifact("first", "artifact-a", "producer-a"),
+					inputArtifact("second", "artifact-b", "producer-b"),
+				},
+			},
+		},
+		Task: &pipelinespec.PipelineTaskSpec{
+			Inputs: &pipelinespec.TaskInputsSpec{
+				Artifacts: map[string]*pipelinespec.TaskInputsSpec_InputArtifactSpec{
+					"models": {
+						Kind: &pipelinespec.TaskInputsSpec_InputArtifactSpec_ArtifactList{
+							ArtifactList: &pipelinespec.TaskInputsSpec_InputArtifactSpec_ArtifactListSpec{
+								Items: []*pipelinespec.TaskInputsSpec_InputArtifactSpec_ArtifactListItemSpec{
+									item("first"),
+									item("second"),
+									item("first"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Component: &pipelinespec.ComponentSpec{
+			InputDefinitions: &pipelinespec.ComponentInputsSpec{
+				Artifacts: map[string]*pipelinespec.ComponentInputsSpec_ArtifactSpec{
+					"models": {IsArtifactList: true},
+				},
+			},
+		},
+	}
+
+	artifacts, err := resolveArtifacts(opts)
+	require.NoError(t, err)
+	require.Len(t, artifacts, 1)
+	assert.Equal(t, []string{"artifact-a", "artifact-b", "artifact-a"}, []string{
+		artifacts[0].ArtifactIO.GetArtifacts()[0].GetArtifactId(),
+		artifacts[0].ArtifactIO.GetArtifacts()[1].GetArtifactId(),
+		artifacts[0].ArtifactIO.GetArtifacts()[2].GetArtifactId(),
+	})
+	require.Len(t, artifacts[0].ArtifactProducers, 3)
+	assert.Equal(t, []string{"producer-a", "producer-b", "producer-a"}, []string{
+		artifacts[0].ArtifactProducers[0].GetTaskName(),
+		artifacts[0].ArtifactProducers[1].GetTaskName(),
+		artifacts[0].ArtifactProducers[2].GetTaskName(),
+	})
+	require.Len(t, artifacts[0].CollectionPositions, 3)
+	assert.Equal(t, int64(0), *artifacts[0].CollectionPositions[0])
+	assert.Equal(t, int64(1), *artifacts[0].CollectionPositions[1])
+	assert.Equal(t, int64(2), *artifacts[0].CollectionPositions[2])
+}
+
 func iteratorArtifact(
 	key string,
 	iteration int64,

@@ -114,6 +114,121 @@ class OrchestratorUtils:
         return copied_dag_arguments
 
     @classmethod
+    def _resolve_parameter_input(
+        cls,
+        input_name: str,
+        input_spec: pipeline_spec_pb2.TaskInputsSpec.InputParameterSpec,
+        io_store: io.IOStore,
+    ) -> Any:
+        """Resolves a task parameter input."""
+        from kfp.local import executor_output_utils
+
+        if input_spec.HasField('runtime_value'):
+            if input_spec.runtime_value.WhichOneof('value') != 'constant':
+                raise ValueError('Expected constant.')
+            return executor_output_utils.pb2_value_to_python(
+                input_spec.runtime_value.constant)
+
+        if input_spec.HasField('task_output_parameter'):
+            return io_store.get_task_output(
+                input_spec.task_output_parameter.producer_task,
+                input_spec.task_output_parameter.output_parameter_key,
+            )
+
+        if input_spec.HasField('component_input_parameter'):
+            parent_value = io_store.get_parent_input(
+                input_spec.component_input_parameter)
+            expression_selector = input_spec.parameter_expression_selector
+            if expression_selector:
+                logging.info(
+                    f"Applying expression selector '{expression_selector}' to parent value: {parent_value}"
+                )
+                parent_value = cls._apply_expression_selector(
+                    parent_value, expression_selector)
+                logging.info(f'After expression selector: {parent_value}')
+            return parent_value
+
+        if input_spec.HasField('task_final_status'):
+            producer_task = input_spec.task_final_status.producer_task
+            try:
+                task_status_str = io_store.get_task_status(producer_task)
+            except ValueError:
+                task_status_str = 'SUCCEEDED'
+            error_info = {}
+            if task_status_str == 'FAILED':
+                error_info = {
+                    'code': 1,
+                    'message': f'Task {producer_task} failed.',
+                }
+            return {
+                'state': task_status_str,
+                'pipeline_job_resource_name': f'local-pipeline-{producer_task}',
+                'pipeline_task_name': producer_task,
+                'error': error_info,
+            }
+
+        if input_spec.HasField('parameter_list'):
+            values = []
+            for item in input_spec.parameter_list.items:
+                if item.HasField('task_output_parameter'):
+                    value = io_store.get_task_output(
+                        item.task_output_parameter.producer_task,
+                        item.task_output_parameter.output_parameter_key,
+                    )
+                elif item.HasField('component_input_parameter'):
+                    value = io_store.get_parent_input(
+                        item.component_input_parameter)
+                else:
+                    raise ValueError(
+                        f'Missing static collection item for parameter {input_name}.'
+                    )
+                if item.parameter_expression_selector:
+                    value = cls._apply_expression_selector(
+                        value, item.parameter_expression_selector)
+                values.append(value)
+            return values
+
+        raise ValueError(f'Missing input for parameter {input_name}.')
+
+    @classmethod
+    def _resolve_artifact_input(
+        cls,
+        input_name: str,
+        input_spec: pipeline_spec_pb2.TaskInputsSpec.InputArtifactSpec,
+        io_store: io.IOStore,
+    ) -> Any:
+        """Resolves a task artifact input."""
+        if input_spec.HasField('task_output_artifact'):
+            return io_store.get_task_output(
+                input_spec.task_output_artifact.producer_task,
+                input_spec.task_output_artifact.output_artifact_key,
+            )
+
+        if input_spec.HasField('component_input_artifact'):
+            return io_store.get_parent_input(
+                input_spec.component_input_artifact)
+
+        if input_spec.HasField('artifact_list'):
+            artifacts = []
+            for item in input_spec.artifact_list.items:
+                if item.HasField('task_output_artifact'):
+                    artifact = io_store.get_task_output(
+                        item.task_output_artifact.producer_task,
+                        item.task_output_artifact.output_artifact_key,
+                    )
+                elif item.HasField('component_input_artifact'):
+                    artifact = io_store.get_parent_input(
+                        item.component_input_artifact)
+                else:
+                    raise ValueError(
+                        f'Missing static collection item for artifact {input_name}.'
+                    )
+                artifacts.append(artifact)
+            return artifacts
+
+        raise ValueError(f'Missing input for artifact {input_name}.')
+
+    @classmethod
     def make_task_arguments(
         cls,
         task_inputs_spec: pipeline_spec_pb2.TaskInputsSpec,
@@ -129,84 +244,14 @@ class OrchestratorUtils:
         Returns:
             The arguments for the task.
         """
-        from kfp.local import executor_output_utils
-
         task_arguments = {}
-        # handle parameters
         for input_name, input_spec in task_inputs_spec.parameters.items():
+            task_arguments[input_name] = cls._resolve_parameter_input(
+                input_name, input_spec, io_store)
 
-            # handle constants
-            if input_spec.HasField('runtime_value'):
-                # runtime_value's value should always be constant for the v2 compiler
-                if input_spec.runtime_value.WhichOneof('value') != 'constant':
-                    raise ValueError('Expected constant.')
-                task_arguments[
-                    input_name] = executor_output_utils.pb2_value_to_python(
-                        input_spec.runtime_value.constant)
-
-            # handle upstream outputs
-            elif input_spec.HasField('task_output_parameter'):
-                task_arguments[input_name] = io_store.get_task_output(
-                    input_spec.task_output_parameter.producer_task,
-                    input_spec.task_output_parameter.output_parameter_key,
-                )
-
-            # handle parent pipeline input parameters
-            elif input_spec.HasField('component_input_parameter'):
-                parent_value = io_store.get_parent_input(
-                    input_spec.component_input_parameter)
-
-                # Check if there's a parameter expression selector to apply
-                # (used in ParallelFor to extract specific fields from structured loop items)
-                expression_selector = input_spec.parameter_expression_selector
-                if expression_selector:
-                    logging.info(
-                        f"Applying expression selector '{expression_selector}' to parent value: {parent_value}"
-                    )
-                    parent_value = cls._apply_expression_selector(
-                        parent_value, expression_selector)
-                    logging.info(f"After expression selector: {parent_value}")
-
-                task_arguments[input_name] = parent_value
-
-            elif input_spec.HasField('task_final_status'):
-                producer_task = input_spec.task_final_status.producer_task
-                try:
-                    task_status_str = io_store.get_task_status(producer_task)
-                except ValueError:
-                    task_status_str = 'SUCCEEDED'
-                error_info = {}
-                if task_status_str == 'FAILED':
-                    error_info = {
-                        'code': 1,
-                        'message': f'Task {producer_task} failed.',
-                    }
-                task_arguments[input_name] = {
-                    'state':
-                        task_status_str,
-                    'pipeline_job_resource_name':
-                        f'local-pipeline-{producer_task}',
-                    'pipeline_task_name':
-                        producer_task,
-                    'error':
-                        error_info,
-                }
-
-            else:
-                raise ValueError(f'Missing input for parameter {input_name}.')
-
-        # handle artifacts
         for input_name, input_spec in task_inputs_spec.artifacts.items():
-            if input_spec.HasField('task_output_artifact'):
-                task_arguments[input_name] = io_store.get_task_output(
-                    input_spec.task_output_artifact.producer_task,
-                    input_spec.task_output_artifact.output_artifact_key,
-                )
-            elif input_spec.HasField('component_input_artifact'):
-                task_arguments[input_name] = io_store.get_parent_input(
-                    input_spec.component_input_artifact)
-            else:
-                raise ValueError(f'Missing input for artifact {input_name}.')
+            task_arguments[input_name] = cls._resolve_artifact_input(
+                input_name, input_spec, io_store)
 
         return task_arguments
 

@@ -40,6 +40,7 @@ var artifactTaskColumns = []string{
 	"RunUUID",
 	"Producer",
 	"ArtifactKey",
+	"CollectionPosition",
 }
 
 type ArtifactTaskStoreInterface interface {
@@ -110,14 +111,15 @@ func createArtifactTaskWithExecutor(exec func(string, ...any) (sql.Result, error
 		Insert(q(artifactTaskTableName)).
 		SetMap(
 			sq.Eq{
-				q("UUID"):        newArtifactTask.UUID,
-				q("ArtifactID"):  newArtifactTask.ArtifactID,
-				q("TaskID"):      newArtifactTask.TaskID,
-				q("Type"):        newArtifactTask.Type,
-				q("Iteration"):   newArtifactTask.Iteration,
-				q("RunUUID"):     newArtifactTask.RunUUID,
-				q("Producer"):    producerValue,
-				q("ArtifactKey"): newArtifactTask.ArtifactKey,
+				q("UUID"):               newArtifactTask.UUID,
+				q("ArtifactID"):         newArtifactTask.ArtifactID,
+				q("TaskID"):             newArtifactTask.TaskID,
+				q("Type"):               newArtifactTask.Type,
+				q("Iteration"):          newArtifactTask.Iteration,
+				q("RunUUID"):            newArtifactTask.RunUUID,
+				q("Producer"):           producerValue,
+				q("ArtifactKey"):        newArtifactTask.ArtifactKey,
+				q("CollectionPosition"): artifactTaskCollectionPositionForStorage(&newArtifactTask),
 			},
 		).
 		ToSql()
@@ -174,14 +176,15 @@ func (s *ArtifactTaskStore) CreateArtifactTasks(artifactTasks []*model.ArtifactT
 			Insert(q(artifactTaskTableName)).
 			SetMap(
 				sq.Eq{
-					q("UUID"):        newArtifactTask.UUID,
-					q("ArtifactID"):  newArtifactTask.ArtifactID,
-					q("TaskID"):      newArtifactTask.TaskID,
-					q("Type"):        newArtifactTask.Type,
-					q("Iteration"):   newArtifactTask.Iteration,
-					q("RunUUID"):     newArtifactTask.RunUUID,
-					q("Producer"):    producerValue,
-					q("ArtifactKey"): newArtifactTask.ArtifactKey,
+					q("UUID"):               newArtifactTask.UUID,
+					q("ArtifactID"):         newArtifactTask.ArtifactID,
+					q("TaskID"):             newArtifactTask.TaskID,
+					q("Type"):               newArtifactTask.Type,
+					q("Iteration"):          newArtifactTask.Iteration,
+					q("RunUUID"):            newArtifactTask.RunUUID,
+					q("Producer"):           producerValue,
+					q("ArtifactKey"):        newArtifactTask.ArtifactKey,
+					q("CollectionPosition"): artifactTaskCollectionPositionForStorage(&newArtifactTask),
 				},
 			).
 			ToSql()
@@ -212,6 +215,7 @@ func (s *ArtifactTaskStore) scanRows(rows *sql.Rows) ([]*model.ArtifactTask, err
 		var runUUID, key string
 		var ioType int32
 		var iteration int64
+		var collectionPosition int64
 		var producer model.JSONData
 
 		err := rows.Scan(
@@ -223,6 +227,7 @@ func (s *ArtifactTaskStore) scanRows(rows *sql.Rows) ([]*model.ArtifactTask, err
 			&runUUID,
 			&producer,
 			&key,
+			&collectionPosition,
 		)
 		if err != nil {
 			return nil, err
@@ -238,9 +243,20 @@ func (s *ArtifactTaskStore) scanRows(rows *sql.Rows) ([]*model.ArtifactTask, err
 			Producer:    producer,
 			ArtifactKey: key,
 		}
+		if collectionPosition != model.ArtifactTaskNoCollectionPosition {
+			artifactTask.CollectionPosition = &collectionPosition
+		}
 		artifactTasks = append(artifactTasks, artifactTask)
 	}
+
 	return artifactTasks, nil
+}
+
+func artifactTaskCollectionPositionForStorage(artifactTask *model.ArtifactTask) int64 {
+	if artifactTask == nil || artifactTask.CollectionPosition == nil {
+		return model.ArtifactTaskNoCollectionPosition
+	}
+	return *artifactTask.CollectionPosition
 }
 
 // applyFilterContextsToQuery applies multiple filter contexts to the query builder

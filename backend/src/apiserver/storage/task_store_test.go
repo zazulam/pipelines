@@ -1268,6 +1268,89 @@ func TestHydrateArtifactsForTasks_ClearsExistingSlicesAndOrdersByKey(t *testing.
 	}
 }
 
+func TestHydrateArtifactsForTasks_PreservesStaticCollectionOrderAndDuplicates(t *testing.T) {
+	db, taskStore, _ := initializeTaskStore()
+	defer db.Close()
+
+	taskStore.uuid = util.NewFakeUUIDGeneratorOrFatal(testUUID1, nil)
+	task, err := taskStore.CreateTask(&model.Task{
+		Namespace:        "ns1",
+		RunUUID:          "run-1",
+		Pods:             createTaskPodsAsJSONSlice(createTaskPod("p1", "uid1", apiv2beta1.PipelineTask_EXECUTOR)),
+		Fingerprint:      "fp-static-order",
+		State:            1,
+		StateHistory:     model.JSONSlice{},
+		InputParameters:  model.JSONSlice{},
+		OutputParameters: model.JSONSlice{},
+		Type:             0,
+		TypeAttrs:        model.JSONData{},
+	})
+	assert.NoError(t, err)
+
+	artifactStore := NewArtifactStore(db, util.NewFakeTimeForEpoch(), util.NewFakeUUIDGeneratorOrFatal(testUUID2, nil), taskStore.dbDialect)
+	artifactA, err := artifactStore.CreateArtifact(&model.Artifact{
+		Namespace: "ns1",
+		Type:      0,
+		URI:       strPTR("s3://bucket/a"),
+		Name:      "artifact-a",
+	})
+	assert.NoError(t, err)
+	artifactStore.uuid = util.NewFakeUUIDGeneratorOrFatal(testUUID3, nil)
+	artifactB, err := artifactStore.CreateArtifact(&model.Artifact{
+		Namespace: "ns1",
+		Type:      0,
+		URI:       strPTR("s3://bucket/b"),
+		Name:      "artifact-b",
+	})
+	assert.NoError(t, err)
+
+	artifactTaskStore := NewArtifactTaskStore(db, util.NewFakeUUIDGeneratorOrFatal(
+		"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1", nil), taskStore.dbDialect)
+	for index, entry := range []struct {
+		artifactID string
+		position   int64
+	}{
+		{artifactID: artifactA.UUID, position: 2},
+		{artifactID: artifactB.UUID, position: 1},
+		{artifactID: artifactA.UUID, position: 0},
+	} {
+		artifactTaskStore.uuid = util.NewFakeUUIDGeneratorOrFatal(
+			[]string{
+				"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+				"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+				"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb3",
+			}[index],
+			nil,
+		)
+		_, err = artifactTaskStore.CreateArtifactTask(&model.ArtifactTask{
+			ArtifactID:         entry.artifactID,
+			TaskID:             task.UUID,
+			Type:               model.IOType(apiv2beta1.IOType_COLLECTED_INPUTS),
+			RunUUID:            task.RunUUID,
+			ArtifactKey:        "models",
+			CollectionPosition: &entry.position,
+		})
+		assert.NoError(t, err)
+	}
+
+	unhydratedTasks, err := taskStore.GetTasksByIDs([]string{task.UUID})
+	assert.NoError(t, err)
+	hydratedTask := unhydratedTasks[task.UUID]
+	err = hydrateArtifactsForTasks(db, []*model.Task{hydratedTask}, taskStore.dbDialect)
+	assert.NoError(t, err)
+	if assert.NotNil(t, hydratedTask) &&
+		assert.Len(t, hydratedTask.InputArtifactsHydrated, 3) {
+		assert.Equal(t, []string{"artifact-a", "artifact-b", "artifact-a"}, []string{
+			hydratedTask.InputArtifactsHydrated[0].Value.Name,
+			hydratedTask.InputArtifactsHydrated[1].Value.Name,
+			hydratedTask.InputArtifactsHydrated[2].Value.Name,
+		})
+		assert.Equal(t, int64(0), *hydratedTask.InputArtifactsHydrated[0].CollectionPosition)
+		assert.Equal(t, int64(1), *hydratedTask.InputArtifactsHydrated[1].CollectionPosition)
+		assert.Equal(t, int64(2), *hydratedTask.InputArtifactsHydrated[2].CollectionPosition)
+	}
+}
+
 func TestGetTaskCountsForRuns(t *testing.T) {
 	db, taskStore, _ := initializeTaskStore()
 	defer db.Close()

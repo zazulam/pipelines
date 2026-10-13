@@ -24,17 +24,19 @@ import (
 type IOType apiv2beta1.IOType
 
 const ArtifactTaskNoIteration int64 = -1
+const ArtifactTaskNoCollectionPosition int64 = -1
 
 // ArtifactTask represents the relationship between artifacts and tasks
 type ArtifactTask struct {
-	UUID        string   `gorm:"column:UUID; not null; primaryKey; type:varchar(191);"`
-	ArtifactID  string   `gorm:"column:ArtifactID; not null; type:varchar(191); index:idx_link_artifact_id; uniqueIndex:UniqueLink,priority:1;"`
-	TaskID      string   `gorm:"column:TaskID; not null; type:varchar(191); index:idx_link_task_run,priority:1; uniqueIndex:UniqueLink,priority:2;"`
-	Type        IOType   `gorm:"column:Type; not null; uniqueIndex:UniqueLink,priority:3;"`
-	Iteration   int64    `gorm:"column:Iteration; not null; default:-1; uniqueIndex:UniqueLink,priority:4;"`
-	RunUUID     string   `gorm:"column:RunUUID; not null; type:varchar(191); index:idx_link_run_id; index:idx_link_task_run,priority:2;"`
-	Producer    JSONData `gorm:"column:Producer; type:json; default:null;"`
-	ArtifactKey string   `gorm:"column:ArtifactKey; not null; type:varchar(191); default:''; uniqueIndex:UniqueLink,priority:5;"`
+	UUID               string   `gorm:"column:UUID; not null; primaryKey; type:varchar(191);"`
+	ArtifactID         string   `gorm:"column:ArtifactID; not null; type:varchar(191); index:idx_link_artifact_id; uniqueIndex:UniqueLink,priority:1;"`
+	TaskID             string   `gorm:"column:TaskID; not null; type:varchar(191); index:idx_link_task_run,priority:1; uniqueIndex:UniqueLink,priority:2;"`
+	Type               IOType   `gorm:"column:Type; not null; uniqueIndex:UniqueLink,priority:3;"`
+	Iteration          int64    `gorm:"column:Iteration; not null; default:-1; uniqueIndex:UniqueLink,priority:4;"`
+	RunUUID            string   `gorm:"column:RunUUID; not null; type:varchar(191); index:idx_link_run_id; index:idx_link_task_run,priority:2;"`
+	Producer           JSONData `gorm:"column:Producer; type:json; default:null;"`
+	ArtifactKey        string   `gorm:"column:ArtifactKey; not null; type:varchar(191); default:''; uniqueIndex:UniqueLink,priority:5;"`
+	CollectionPosition *int64   `gorm:"column:CollectionPosition; not null; default:-1; uniqueIndex:UniqueLink,priority:6;"`
 
 	// Relationships
 	Artifact Artifact `gorm:"foreignKey:ArtifactID;references:UUID;constraint:fk_artifact_tasks_artifacts,OnDelete:CASCADE,OnUpdate:CASCADE;"`
@@ -72,13 +74,14 @@ func (at ArtifactTask) GetKeyFieldPrefix() string {
 }
 
 var artifactTaskAPIToModelFieldMap = map[string]string{
-	"id":          "UUID",
-	"artifact_id": "ArtifactID",
-	"task_id":     "TaskID",
-	"type":        "Type",
-	"run_id":      "RunUUID",
-	"producer":    "Producer",
-	"key":         "ArtifactKey",
+	"id":                  "UUID",
+	"artifact_id":         "ArtifactID",
+	"task_id":             "TaskID",
+	"type":                "Type",
+	"run_id":              "RunUUID",
+	"producer":            "Producer",
+	"key":                 "ArtifactKey",
+	"collection_position": "CollectionPosition",
 }
 
 func (at ArtifactTask) GetField(name string) (string, string, bool) {
@@ -106,6 +109,11 @@ func (at ArtifactTask) GetFieldValue(name string) interface{} {
 		return at.Producer
 	case "ArtifactKey":
 		return at.ArtifactKey
+	case "CollectionPosition":
+		if at.CollectionPosition == nil {
+			return ArtifactTaskNoCollectionPosition
+		}
+		return *at.CollectionPosition
 	default:
 		return nil
 	}

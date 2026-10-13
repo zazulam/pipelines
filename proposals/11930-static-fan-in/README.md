@@ -286,9 +286,12 @@ The generated TypeScript pipeline-spec bindings must be regenerated for the new
 input variants. Static graph parsing must inspect each parameter-list and
 artifact-list item so every producer is connected to the consumer. Artifact
 members retain the existing producer-to-artifact-to-consumer visualization.
-Artifact edge IDs include the producer task, output key, consumer task, and list
-position so producers with the same output key and repeated members create
-distinct edges.
+The graph represents unique dependencies rather than rendering overlapping
+edges for repeated members. Artifact edge IDs include the producer task, output
+key, consumer task, and consumer input name. Selecting the consumer shows the
+ordered input binding, including repeated members and per-item selectors, so a
+collection such as `[a, b, a]` remains inspectable without adding a synthetic
+runtime node for `dsl.Collected`.
 
 Static fan-in does not add a pipeline-level runtime input or change the run
 creation experience.
@@ -309,7 +312,8 @@ through the native task and artifact APIs. KFP Local tests will execute both
 input kinds.
 
 Frontend tests will use multiple producers with the same output key and a
-repeated member, verifying distinct edge IDs and every expected source.
+repeated member, verifying every unique dependency edge and the exact ordered
+binding in task details.
 
 An integration test will execute the issue #11930 example with three independent
 model trainers and one `Input[List[Model]]` evaluator.

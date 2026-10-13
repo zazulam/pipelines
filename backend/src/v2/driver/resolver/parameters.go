@@ -49,6 +49,33 @@ func resolveParameters(opts common.Options) ([]ParameterMetadata, error) {
 			}
 		}
 
+		if paramSpec.GetParameterList() != nil {
+			componentParam := opts.Component.GetInputDefinitions().GetParameters()[key]
+			if componentParam == nil {
+				return nil, fmt.Errorf("static parameter collection %q has no destination input definition", key)
+			}
+			if componentParam.GetParameterType() != pipelinespec.ParameterType_LIST {
+				return nil, fmt.Errorf("static parameter collection %q requires a LIST destination, got %s", key, componentParam.GetParameterType())
+			}
+			value, err := resolveParameterList(opts, key, paramSpec.GetParameterList(), opts.ParentTask.Inputs.GetParameters(), expr)
+			if err != nil {
+				return nil, err
+			}
+			parameters = append(parameters, ParameterMetadata{
+				Key:                key,
+				InputParameterSpec: paramSpec,
+				ParameterIO: &apiv2beta1.PipelineTask_InputOutputs_IOParameter{
+					Value:        value,
+					Type:         apiv2beta1.IOType_COLLECTED_INPUTS,
+					ParameterKey: key,
+					Producer: &apiv2beta1.IOProducer{
+						TaskName: opts.ParentTask.GetName(),
+					},
+				},
+			})
+			continue
+		}
+
 		v, ioType, err := ResolveInputParameter(opts, paramSpec, opts.ParentTask.Inputs.GetParameters())
 		if err != nil {
 			if !errors.Is(err, ErrResolvedParameterNull) {
@@ -178,6 +205,48 @@ func resolveParameters(opts common.Options) ([]ParameterMetadata, error) {
 	}
 
 	return parameters, nil
+}
+
+func resolveParameterList(
+	opts common.Options,
+	inputName string,
+	listSpec *pipelinespec.TaskInputsSpec_InputParameterSpec_ParameterListSpec,
+	inputParameters []*apiv2beta1.PipelineTask_InputOutputs_IOParameter,
+	expr *expression.Expr,
+) (*structpb.Value, error) {
+	values := make([]*structpb.Value, 0, len(listSpec.GetItems()))
+	if len(listSpec.GetItems()) == 0 {
+		return nil, fmt.Errorf("static parameter collection %q must contain at least one item", inputName)
+	}
+	for index, item := range listSpec.GetItems() {
+		scalarSpec := &pipelinespec.TaskInputsSpec_InputParameterSpec{}
+		switch item.GetKind().(type) {
+		case *pipelinespec.TaskInputsSpec_InputParameterSpec_ParameterListItemSpec_TaskOutputParameter:
+			scalarSpec.Kind = &pipelinespec.TaskInputsSpec_InputParameterSpec_TaskOutputParameter{
+				TaskOutputParameter: item.GetTaskOutputParameter(),
+			}
+		case *pipelinespec.TaskInputsSpec_InputParameterSpec_ParameterListItemSpec_ComponentInputParameter:
+			scalarSpec.Kind = &pipelinespec.TaskInputsSpec_InputParameterSpec_ComponentInputParameter{
+				ComponentInputParameter: item.GetComponentInputParameter(),
+			}
+		default:
+			return nil, fmt.Errorf("resolving parameter %q list item %d: unsupported item kind %T", inputName, index, item.GetKind())
+		}
+
+		resolved, _, err := ResolveInputParameter(opts, scalarSpec, inputParameters)
+		if err != nil {
+			return nil, fmt.Errorf("resolving parameter %q list item %d: %w", inputName, index, err)
+		}
+		value := resolved.GetValue()
+		if selector := item.GetParameterExpressionSelector(); selector != "" {
+			value, err = expr.Select(value, selector)
+			if err != nil {
+				return nil, fmt.Errorf("resolving parameter %q list item %d: evaluation of parameter expression selector %q failed: %w", inputName, index, selector, err)
+			}
+		}
+		values = append(values, value)
+	}
+	return structpb.NewListValue(&structpb.ListValue{Values: values}), nil
 }
 
 func isCurrentParameterIteratorInput(opts common.Options, name string) bool {

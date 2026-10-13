@@ -3732,6 +3732,183 @@ class TestOutputDefinitionsPresentWhenCompilingComponents(unittest.TestCase):
                       comp.pipeline_spec.root.output_definitions.parameters)
 
 
+class TestFanInTaskOutputs(unittest.TestCase):
+
+    def test_parameter_outputs_compile_as_ordered_list(self):
+
+        @dsl.component
+        def produce(value: str) -> str:
+            return value
+
+        @dsl.component
+        def consume(values: List[str]):
+            print(values)
+
+        @dsl.pipeline
+        def my_pipeline():
+            first = produce(value='first')
+            second = produce(value='second')
+            consume(values=dsl.Collected(first.output, second.output))
+
+        parameter_list = my_pipeline.pipeline_spec.root.dag.tasks[
+            'consume'].inputs.parameters['values'].parameter_list
+        self.assertEqual(
+            [(item.task_output_parameter.producer_task,
+              item.task_output_parameter.output_parameter_key)
+             for item in parameter_list.items],
+            [('produce', 'Output'), ('produce-2', 'Output')],
+        )
+
+    def test_artifact_outputs_compile_as_ordered_list(self):
+
+        @dsl.component
+        def train_svc() -> Model:
+            return Model(uri='svc')
+
+        @dsl.component
+        def train_xgb() -> Model:
+            return Model(uri='xgb')
+
+        @dsl.component
+        def train_lr() -> Model:
+            return Model(uri='lr')
+
+        @dsl.component
+        def evaluate_models(models: Input[List[Model]]):
+            print(models)
+
+        @dsl.pipeline
+        def my_pipeline():
+            svc = train_svc()
+            xgb = train_xgb()
+            lr = train_lr()
+            models = [svc.output, xgb.output, lr.output]
+            evaluate_models(models=dsl.Collected(models))
+
+        artifact_list = my_pipeline.pipeline_spec.root.dag.tasks[
+            'evaluate-models'].inputs.artifacts['models'].artifact_list
+        self.assertEqual(
+            [(item.task_output_artifact.producer_task,
+              item.task_output_artifact.output_artifact_key)
+             for item in artifact_list.items],
+            [
+                ('train-svc', 'Output'),
+                ('train-xgb', 'Output'),
+                ('train-lr', 'Output'),
+            ],
+        )
+
+    def test_heterogeneous_artifact_list_reports_mismatched_type(self):
+
+        @dsl.component
+        def produce_model() -> Model:
+            return Model(uri='model')
+
+        @dsl.component
+        def produce_dataset() -> Dataset:
+            return Dataset(uri='dataset')
+
+        @dsl.component
+        def consume(models: Input[List[Model]]):
+            print(models)
+
+        with self.assertRaisesRegex(
+                TypeError, r'must have the same type.*system\.Dataset'):
+
+            @dsl.pipeline
+            def my_pipeline():
+                model = produce_model()
+                dataset = produce_dataset()
+                consume(models=dsl.Collected(model.output, dataset.output))
+
+    def test_channel_list_crosses_dag_boundary(self):
+
+        @dsl.component
+        def produce(value: str) -> str:
+            return value
+
+        @dsl.component
+        def consume(values: List[str]):
+            print(values)
+
+        @dsl.pipeline
+        def my_pipeline(run_consumer: bool = True):
+            first = produce(value='first')
+            second = produce(value='second')
+            with dsl.If(run_consumer == True):
+                consume(values=dsl.Collected(first.output, second.output))
+
+        condition_component = my_pipeline.pipeline_spec.components[
+            'comp-condition-1']
+        parameter_list = condition_component.dag.tasks[
+            'consume'].inputs.parameters['values'].parameter_list
+        self.assertEqual(
+            [item.component_input_parameter for item in parameter_list.items],
+            [
+                'pipelinechannel--produce-Output',
+                'pipelinechannel--produce-2-Output',
+            ],
+        )
+
+    def test_constant_list_compilation_is_unchanged(self):
+
+        @dsl.component
+        def consume(values: List[str]):
+            print(values)
+
+        @dsl.pipeline
+        def my_pipeline():
+            consume(values=['first', 'second'])
+
+        parameter_input = my_pipeline.pipeline_spec.root.dag.tasks[
+            'consume'].inputs.parameters['values']
+        self.assertEqual(parameter_input.WhichOneof('kind'), 'runtime_value')
+        self.assertEqual(
+            [
+                value.string_value for value in
+                parameter_input.runtime_value.constant.list_value.values
+            ],
+            ['first', 'second'],
+        )
+
+    def test_collected_rejects_constant_values(self):
+
+        @dsl.component
+        def produce() -> str:
+            return 'value'
+
+        @dsl.component
+        def consume(values: List[str]):
+            print(values)
+
+        with self.assertRaisesRegex(TypeError,
+                                    'accepts only PipelineChannel values'):
+
+            @dsl.pipeline
+            def my_pipeline():
+                produced = produce()
+                consume(values=dsl.Collected(produced.output, 'constant'))
+
+    def test_collected_channel_in_list_is_rejected(self):
+
+        @dsl.component
+        def produce(value: str) -> str:
+            return value
+
+        @dsl.component
+        def consume(values: List[str]):
+            print(values)
+
+        with self.assertRaisesRegex(ValueError,
+                                    'cannot contain Collected values'):
+
+            @dsl.pipeline
+            def my_pipeline():
+                with dsl.ParallelFor(['first', 'second']) as value:
+                    produced = produce(value=value)
+                consume(values=[dsl.Collected(produced.output)])
+
+
 class TestListOfArtifactsInterfaceCompileAndLoad(unittest.TestCase):
 
     def test_python_component(self):

@@ -92,6 +92,117 @@ def to_protobuf_value(
                          f'"{value}" of type "{type(value)}".')
 
 
+def _build_artifact_input_spec(
+    input_value: pipeline_channel.PipelineArtifactChannel,
+    parent_component_inputs: pipeline_spec_pb2.ComponentInputsSpec,
+    tasks_in_current_dag: List[str],
+) -> pipeline_spec_pb2.TaskInputsSpec.InputArtifactSpec:
+    """Builds an artifact input reference for a task."""
+    artifact_spec = pipeline_spec_pb2.TaskInputsSpec.InputArtifactSpec()
+    if input_value.task_name:
+        if input_value.task_name in tasks_in_current_dag:
+            artifact_spec.task_output_artifact.producer_task = (
+                utils.sanitize_task_name(input_value.task_name))
+            artifact_spec.task_output_artifact.output_artifact_key = (
+                input_value.name)
+        else:
+            component_input_artifact = (
+                compiler_utils.additional_input_name_for_pipeline_channel(
+                    input_value))
+            assert component_input_artifact in parent_component_inputs.artifacts, \
+                f'component_input_artifact: {component_input_artifact} not found. All inputs: {parent_component_inputs}'
+            artifact_spec.component_input_artifact = component_input_artifact
+    else:
+        component_input_artifact = input_value.full_name
+        if component_input_artifact not in parent_component_inputs.artifacts:
+            component_input_artifact = (
+                compiler_utils.additional_input_name_for_pipeline_channel(
+                    input_value))
+        artifact_spec.component_input_artifact = component_input_artifact
+    return artifact_spec
+
+
+def _build_parameter_input_spec(
+    input_value: pipeline_channel.PipelineParameterChannel,
+    parent_component_inputs: pipeline_spec_pb2.ComponentInputsSpec,
+    tasks_in_current_dag: List[str],
+) -> pipeline_spec_pb2.TaskInputsSpec.InputParameterSpec:
+    """Builds a parameter input reference for a task."""
+    parameter_spec = pipeline_spec_pb2.TaskInputsSpec.InputParameterSpec()
+    if input_value.task_name:
+        if input_value.task_name in tasks_in_current_dag:
+            parameter_spec.task_output_parameter.producer_task = (
+                utils.sanitize_task_name(input_value.task_name))
+            parameter_spec.task_output_parameter.output_parameter_key = (
+                input_value.name)
+        else:
+            component_input_parameter = (
+                compiler_utils.additional_input_name_for_pipeline_channel(
+                    input_value))
+            assert component_input_parameter in parent_component_inputs.parameters, \
+                f'component_input_parameter: {component_input_parameter} not found. All inputs: {parent_component_inputs}'
+            parameter_spec.component_input_parameter = component_input_parameter
+    else:
+        component_input_parameter = input_value.full_name
+        if component_input_parameter not in parent_component_inputs.parameters:
+            component_input_parameter = (
+                compiler_utils.additional_input_name_for_pipeline_channel(
+                    input_value))
+        parameter_spec.component_input_parameter = component_input_parameter
+    return parameter_spec
+
+
+def _build_artifact_list_item_spec(
+    input_value: pipeline_channel.PipelineArtifactChannel,
+    parent_component_inputs: pipeline_spec_pb2.ComponentInputsSpec,
+    tasks_in_current_dag: List[str],
+) -> pipeline_spec_pb2.TaskInputsSpec.InputArtifactSpec.ArtifactListItemSpec:
+    """Builds a scalar artifact reference within a static collection."""
+    scalar_spec = _build_artifact_input_spec(
+        input_value=input_value,
+        parent_component_inputs=parent_component_inputs,
+        tasks_in_current_dag=tasks_in_current_dag,
+    )
+    item_spec = pipeline_spec_pb2.TaskInputsSpec.InputArtifactSpec.ArtifactListItemSpec(
+    )
+    if scalar_spec.HasField('task_output_artifact'):
+        item_spec.task_output_artifact.CopyFrom(
+            scalar_spec.task_output_artifact)
+    else:
+        item_spec.component_input_artifact = (
+            scalar_spec.component_input_artifact)
+    return item_spec
+
+
+def _build_parameter_list_item_spec(
+    input_value: pipeline_channel.PipelineParameterChannel,
+    parent_component_inputs: pipeline_spec_pb2.ComponentInputsSpec,
+    tasks_in_current_dag: List[str],
+) -> pipeline_spec_pb2.TaskInputsSpec.InputParameterSpec.ParameterListItemSpec:
+    """Builds a scalar parameter reference within a static collection."""
+    source_channel = input_value
+    selector = ''
+    if isinstance(input_value, for_loop.LoopArgumentVariable):
+        source_channel = input_value.loop_argument
+        selector = f'parseJson(string_value)["{input_value.subvar_name}"]'
+
+    scalar_spec = _build_parameter_input_spec(
+        input_value=source_channel,
+        parent_component_inputs=parent_component_inputs,
+        tasks_in_current_dag=tasks_in_current_dag,
+    )
+    item_spec = pipeline_spec_pb2.TaskInputsSpec.InputParameterSpec.ParameterListItemSpec(
+    )
+    if scalar_spec.HasField('task_output_parameter'):
+        item_spec.task_output_parameter.CopyFrom(
+            scalar_spec.task_output_parameter)
+    else:
+        item_spec.component_input_parameter = (
+            scalar_spec.component_input_parameter)
+    item_spec.parameter_expression_selector = selector
+    return item_spec
+
+
 def build_task_spec_for_task(
     task: pipeline_task.PipelineTask,
     parent_component_inputs: pipeline_spec_pb2.ComponentInputsSpec,
@@ -156,7 +267,48 @@ def build_task_spec_for_task(
         # Since LoopParameterArgument and LoopArtifactArgument and LoopArgumentVariable are narrower
         # types than PipelineParameterChannel, start with them.
 
-        if isinstance(input_value, for_loop.LoopParameterArgument):
+        unsupported_list_channel_types = (
+            dsl.Collected,
+            for_loop.LoopParameterArgument,
+            for_loop.LoopArtifactArgument,
+            for_loop.LoopArgumentVariable,
+        )
+        if isinstance(input_value, list):
+            unsupported_items = [
+                item for item in input_value
+                if isinstance(item, unsupported_list_channel_types)
+            ]
+            if unsupported_items:
+                raise ValueError(
+                    'Lists of task outputs cannot contain '
+                    f'{type(unsupported_items[0]).__name__} values.')
+
+        input_definition = (task.component_spec.inputs or {}).get(input_name)
+        if isinstance(input_value, dsl.Collected) and input_value.is_static:
+            assert input_definition is not None
+            if input_definition.is_artifact_list:
+                artifact_list = pipeline_task_spec.inputs.artifacts[
+                    input_name].artifact_list
+                artifact_list.SetInParent()
+                for item in input_value.outputs:
+                    artifact_list.items.add().CopyFrom(
+                        _build_artifact_list_item_spec(
+                            input_value=item,
+                            parent_component_inputs=parent_component_inputs,
+                            tasks_in_current_dag=tasks_in_current_dag,
+                        ))
+            else:
+                parameter_list = pipeline_task_spec.inputs.parameters[
+                    input_name].parameter_list
+                for item in input_value.outputs:
+                    parameter_list.items.add().CopyFrom(
+                        _build_parameter_list_item_spec(
+                            input_value=item,
+                            parent_component_inputs=parent_component_inputs,
+                            tasks_in_current_dag=tasks_in_current_dag,
+                        ))
+
+        elif isinstance(input_value, for_loop.LoopParameterArgument):
 
             component_input_parameter = (
                 compiler_utils.additional_input_name_for_pipeline_channel(
@@ -195,72 +347,23 @@ def build_task_spec_for_task(
                         pipeline_channel.PipelineArtifactChannel) or (
                             isinstance(input_value, dsl.Collected) and
                             input_value.is_artifact_channel):
-
-            if input_value.task_name:
-                # Value is produced by an upstream task.
-                if input_value.task_name in tasks_in_current_dag:
-                    # Dependent task within the same DAG.
-                    pipeline_task_spec.inputs.artifacts[
-                        input_name].task_output_artifact.producer_task = (
-                            utils.sanitize_task_name(input_value.task_name))
-                    pipeline_task_spec.inputs.artifacts[
-                        input_name].task_output_artifact.output_artifact_key = (
-                            input_value.name)
-                else:
-                    # Dependent task not from the same DAG.
-                    component_input_artifact = (
-                        compiler_utils.
-                        additional_input_name_for_pipeline_channel(input_value))
-                    assert component_input_artifact in parent_component_inputs.artifacts, \
-                        f'component_input_artifact: {component_input_artifact} not found. All inputs: {parent_component_inputs}'
-                    pipeline_task_spec.inputs.artifacts[
-                        input_name].component_input_artifact = (
-                            component_input_artifact)
-            else:
-                component_input_artifact = input_value.full_name
-                if component_input_artifact not in parent_component_inputs.artifacts:
-                    component_input_artifact = (
-                        compiler_utils.
-                        additional_input_name_for_pipeline_channel(input_value))
-                pipeline_task_spec.inputs.artifacts[
-                    input_name].component_input_artifact = (
-                        component_input_artifact)
+            pipeline_task_spec.inputs.artifacts[input_name].CopyFrom(
+                _build_artifact_input_spec(
+                    input_value=input_value,
+                    parent_component_inputs=parent_component_inputs,
+                    tasks_in_current_dag=tasks_in_current_dag,
+                ))
 
         elif isinstance(input_value,
                         pipeline_channel.PipelineParameterChannel) or (
                             isinstance(input_value, dsl.Collected) and
                             not input_value.is_artifact_channel):
-            if input_value.task_name:
-
-                # Value is produced by an upstream task.
-                if input_value.task_name in tasks_in_current_dag:
-                    # Dependent task within the same DAG.
-                    pipeline_task_spec.inputs.parameters[
-                        input_name].task_output_parameter.producer_task = (
-                            utils.sanitize_task_name(input_value.task_name))
-                    pipeline_task_spec.inputs.parameters[
-                        input_name].task_output_parameter.output_parameter_key = (
-                            input_value.name)
-                else:
-                    # Dependent task not from the same DAG.
-                    component_input_parameter = (
-                        compiler_utils.
-                        additional_input_name_for_pipeline_channel(input_value))
-                    assert component_input_parameter in parent_component_inputs.parameters, \
-                        f'component_input_parameter: {component_input_parameter} not found. All inputs: {parent_component_inputs}'
-                    pipeline_task_spec.inputs.parameters[
-                        input_name].component_input_parameter = (
-                            component_input_parameter)
-            else:
-                # Value is from pipeline input.
-                component_input_parameter = input_value.full_name
-                if component_input_parameter not in parent_component_inputs.parameters:
-                    component_input_parameter = (
-                        compiler_utils.
-                        additional_input_name_for_pipeline_channel(input_value))
-                pipeline_task_spec.inputs.parameters[
-                    input_name].component_input_parameter = (
-                        component_input_parameter)
+            pipeline_task_spec.inputs.parameters[input_name].CopyFrom(
+                _build_parameter_input_spec(
+                    input_value=input_value,
+                    parent_component_inputs=parent_component_inputs,
+                    tasks_in_current_dag=tasks_in_current_dag,
+                ))
 
         elif isinstance(input_value, (str, int, float, bool, dict, list)):
             pipeline_channels = (

@@ -296,6 +296,75 @@ func TestResolveParameters_AppliesSelectorAndStringCoercion(t *testing.T) {
 	assert.Equal(t, "42", parameters[0].ParameterIO.GetValue().GetStringValue())
 }
 
+func TestResolveParameters_StaticCollectionPreservesOrderAndSelectors(t *testing.T) {
+	first, err := structpb.NewValue(map[string]interface{}{"name": "first"})
+	require.NoError(t, err)
+	second, err := structpb.NewValue(map[string]interface{}{"name": "second"})
+	require.NoError(t, err)
+
+	opts := common.Options{
+		ParentTask: &apiv2beta1.PipelineTask{
+			Inputs: &apiv2beta1.PipelineTask_InputOutputs{
+				Parameters: []*apiv2beta1.PipelineTask_InputOutputs_IOParameter{
+					{ParameterKey: "first", Value: first},
+					{ParameterKey: "second", Value: second},
+				},
+			},
+		},
+		Task: &pipelinespec.PipelineTaskSpec{
+			Inputs: &pipelinespec.TaskInputsSpec{
+				Parameters: map[string]*pipelinespec.TaskInputsSpec_InputParameterSpec{
+					"names": {
+						Kind: &pipelinespec.TaskInputsSpec_InputParameterSpec_ParameterList{
+							ParameterList: &pipelinespec.TaskInputsSpec_InputParameterSpec_ParameterListSpec{
+								Items: []*pipelinespec.TaskInputsSpec_InputParameterSpec_ParameterListItemSpec{
+									{
+										Kind: &pipelinespec.TaskInputsSpec_InputParameterSpec_ParameterListItemSpec_ComponentInputParameter{
+											ComponentInputParameter: "first",
+										},
+										ParameterExpressionSelector: "struct_value.name",
+									},
+									{
+										Kind: &pipelinespec.TaskInputsSpec_InputParameterSpec_ParameterListItemSpec_ComponentInputParameter{
+											ComponentInputParameter: "second",
+										},
+										ParameterExpressionSelector: "struct_value.name",
+									},
+									{
+										Kind: &pipelinespec.TaskInputsSpec_InputParameterSpec_ParameterListItemSpec_ComponentInputParameter{
+											ComponentInputParameter: "first",
+										},
+										ParameterExpressionSelector: "struct_value.name",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Component: &pipelinespec.ComponentSpec{
+			InputDefinitions: &pipelinespec.ComponentInputsSpec{
+				Parameters: map[string]*pipelinespec.ComponentInputsSpec_ParameterSpec{
+					"names": {ParameterType: pipelinespec.ParameterType_LIST},
+				},
+			},
+		},
+	}
+
+	parameters, err := resolveParameters(opts)
+	require.NoError(t, err)
+	require.Len(t, parameters, 1)
+	assert.Equal(t, apiv2beta1.IOType_COLLECTED_INPUTS, parameters[0].ParameterIO.GetType())
+	values := parameters[0].ParameterIO.GetValue().GetListValue().GetValues()
+	require.Len(t, values, 3)
+	assert.Equal(t, []string{"first", "second", "first"}, []string{
+		values[0].GetStringValue(),
+		values[1].GetStringValue(),
+		values[2].GetStringValue(),
+	})
+}
+
 func TestResolveParameters_ValidatesLiterals(t *testing.T) {
 	parentTask := &apiv2beta1.PipelineTask{
 		TaskId: "parent-task",

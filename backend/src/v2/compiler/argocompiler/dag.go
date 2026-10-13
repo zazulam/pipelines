@@ -669,24 +669,55 @@ func addImplicitDependencies(dagSpec *pipelinespec.DagSpec) error {
 			}
 			return nil
 		}
-		for _, input := range task.GetInputs().GetParameters() {
+		addParameterInputDeps := func(input *pipelinespec.TaskInputsSpec_InputParameterSpec) error {
 			switch input.GetKind().(type) {
 			case *pipelinespec.TaskInputsSpec_InputParameterSpec_TaskOutputParameter:
 				if err := addDep(input.GetTaskOutputParameter().GetProducerTask()); err != nil {
-					return wrap(err)
+					return err
+				}
+			case *pipelinespec.TaskInputsSpec_InputParameterSpec_ParameterList:
+				for _, item := range input.GetParameterList().GetItems() {
+					if item.GetTaskOutputParameter() == nil {
+						continue
+					}
+					if err := addDep(item.GetTaskOutputParameter().GetProducerTask()); err != nil {
+						return err
+					}
 				}
 			default:
 				// other parameter input types do not introduce implicit dependencies
 			}
+			return nil
 		}
-		for _, input := range task.GetInputs().GetArtifacts() {
+		for _, input := range task.GetInputs().GetParameters() {
+			if err := addParameterInputDeps(input); err != nil {
+				return wrap(err)
+			}
+		}
+
+		addArtifactInputDeps := func(input *pipelinespec.TaskInputsSpec_InputArtifactSpec) error {
 			switch input.GetKind().(type) {
 			case *pipelinespec.TaskInputsSpec_InputArtifactSpec_TaskOutputArtifact:
 				if err := addDep(input.GetTaskOutputArtifact().GetProducerTask()); err != nil {
-					return wrap(err)
+					return err
+				}
+			case *pipelinespec.TaskInputsSpec_InputArtifactSpec_ArtifactList:
+				for _, item := range input.GetArtifactList().GetItems() {
+					if item.GetTaskOutputArtifact() == nil {
+						continue
+					}
+					if err := addDep(item.GetTaskOutputArtifact().GetProducerTask()); err != nil {
+						return err
+					}
 				}
 			default:
 				// other artifact input types do not introduce implicit dependencies
+			}
+			return nil
+		}
+		for _, input := range task.GetInputs().GetArtifacts() {
+			if err := addArtifactInputDeps(input); err != nil {
+				return wrap(err)
 			}
 		}
 		// Dependencies are collected by iterating input maps, whose order is not

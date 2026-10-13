@@ -129,6 +129,52 @@ class TestRunLocalPipeline(testing_utilities.LocalRunnerEnvironmentTestCase):
         self.assertEqual(task.output, 'text')
         self.assert_output_dir_contents(1, 2)
 
+    def test_static_collected_artifacts(self):
+        local.init(local.SubprocessRunner(), pipeline_root=ROOT_FOR_TESTING)
+
+        @dsl.component
+        def make_model(name: str, model: Output[Model]):
+            model.metadata['name'] = name
+
+        @dsl.component
+        def model_names(models: Input[List[Model]]) -> List[str]:
+            return [model.metadata['name'] for model in models]
+
+        @dsl.pipeline
+        def my_pipeline() -> List[str]:
+            models = [
+                make_model(name=name).output for name in ['svc', 'xgb', 'lr']
+            ]
+            return model_names(models=dsl.Collected(models)).output
+
+        task = my_pipeline()
+
+        self.assertEqual(task.output, ['svc', 'xgb', 'lr'])
+        self.assert_output_dir_contents(1, 4)
+
+    def test_static_collected_parameters(self):
+        local.init(local.SubprocessRunner(), pipeline_root=ROOT_FOR_TESTING)
+
+        @dsl.component
+        def produce(value: str) -> str:
+            return value
+
+        @dsl.component
+        def join(values: List[str]) -> str:
+            return ','.join(values)
+
+        @dsl.pipeline
+        def my_pipeline() -> str:
+            values = [
+                produce(value=value).output for value in ['first', 'second']
+            ]
+            return join(values=dsl.Collected(values)).output
+
+        task = my_pipeline()
+
+        self.assertEqual(task.output, 'first,second')
+        self.assert_output_dir_contents(1, 3)
+
     def test_can_run_loaded_pipeline(self):
         local.init(local.SubprocessRunner(), pipeline_root=ROOT_FOR_TESTING)
 

@@ -310,6 +310,7 @@ function addArtifactToTaskEdges(
   // Artifact to Task: root -> dag -> tasks -> key/value -> inputs -> artifacts -> key/value
   //                   -> taskOutputArtifact -> outputArtifactKey+producerTask
   for (let inputTaskKey in tasksMap) {
+    const edgeKeys = new Map<string, Edge>();
     const taskSpec = tasksMap[inputTaskKey];
     const inputs = taskSpec.inputs;
     if (!inputs) {
@@ -323,21 +324,69 @@ function addArtifactToTaskEdges(
       if (taskOutputArtifact) {
         const outputArtifactKey = taskOutputArtifact.outputArtifactKey;
         const producerTask = taskOutputArtifact.producerTask;
+        const edgeId = getArtifactToTaskEdgeKey(
+          producerTask,
+          outputArtifactKey,
+          inputTaskKey,
+          artifactKey,
+        );
         const edge: Edge = {
-          id: getArtifactToTaskEdgeKey(outputArtifactKey, inputTaskKey),
+          id: edgeId,
           source: getArtifactNodeKey(producerTask, outputArtifactKey),
           target: getTaskNodeKey(inputTaskKey),
           markerEnd: { type: MarkerType.ArrowClosed },
         };
         flowGraph.push(edge);
+        edgeKeys.set(edgeId, edge);
       } else if (componentInputArtifact) {
+        const edgeId = getArtifactToTaskEdgeKey(
+          '',
+          componentInputArtifact,
+          inputTaskKey,
+          artifactKey,
+        );
         const edge: Edge = {
-          id: getArtifactToTaskEdgeKey(componentInputArtifact, inputTaskKey),
+          id: edgeId,
           source: getArtifactNodeKey('', componentInputArtifact),
           target: getTaskNodeKey(inputTaskKey),
           markerEnd: { type: MarkerType.ArrowClosed },
         };
         flowGraph.push(edge);
+        edgeKeys.set(edgeId, edge);
+      } else if (artifactSpec.artifactList) {
+        artifactSpec.artifactList.items.forEach((item, position) => {
+          const producerTask = item.taskOutputArtifact?.producerTask || '';
+          const outputArtifactKey =
+            item.taskOutputArtifact?.outputArtifactKey || item.componentInputArtifact || '';
+          const edgeId = getArtifactToTaskEdgeKey(
+            producerTask,
+            outputArtifactKey,
+            inputTaskKey,
+            artifactKey,
+          );
+          if (!outputArtifactKey) {
+            return;
+          }
+          const existingEdge = edgeKeys.get(edgeId);
+          if (existingEdge) {
+            existingEdge.data = {
+              collectionPositions: [
+                ...((existingEdge.data?.collectionPositions as number[] | undefined) || []),
+                position,
+              ],
+            };
+            return;
+          }
+          const edge: Edge = {
+            id: edgeId,
+            source: getArtifactNodeKey(producerTask, outputArtifactKey),
+            target: getTaskNodeKey(inputTaskKey),
+            markerEnd: { type: MarkerType.ArrowClosed },
+            data: { collectionPositions: [position] },
+          };
+          flowGraph.push(edge);
+          edgeKeys.set(edgeId, edge);
+        });
       }
     }
   }
@@ -380,6 +429,24 @@ function addTaskToTaskEdges(
         };
         flowGraph.push(edge);
         edgeKeys.set(edgeId, edge);
+      } else if (paramSpec.parameterList) {
+        for (const item of paramSpec.parameterList.items) {
+          const producerTask = item.taskOutputParameter?.producerTask;
+          if (!producerTask) {
+            continue;
+          }
+          const edgeId = getTaskToTaskEdgeKey(producerTask, inputTaskKey);
+          if (edgeKeys.has(edgeId)) {
+            continue;
+          }
+          flowGraph.push({
+            id: edgeId,
+            source: getTaskNodeKey(producerTask),
+            target: getTaskNodeKey(inputTaskKey),
+            markerEnd: { type: MarkerType.ArrowClosed },
+          });
+          edgeKeys.set(edgeId, flowGraph[flowGraph.length - 1] as Edge);
+        }
       }
     }
   }
@@ -521,9 +588,13 @@ function getTaskToArtifactEdgeKey(taskKey: string, artifactKey: string): string 
   return 'outedge.' + taskKey + '.' + artifactKey;
 }
 
-function getArtifactToTaskEdgeKey(outputArtifactKey: string, inputTaskKey: string): string {
-  // id is in pattern of inedge.artifactKey.inputTaskKey
-  return 'inedge.' + outputArtifactKey + '.' + inputTaskKey;
+function getArtifactToTaskEdgeKey(
+  producerTask: string,
+  outputArtifactKey: string,
+  inputTaskKey: string,
+  inputArtifactKey: string,
+): string {
+  return `inedge.${producerTask}.${outputArtifactKey}.${inputTaskKey}.${inputArtifactKey}`;
 }
 
 function getTaskToTaskEdgeKey(producerTask: string, inputTaskKey: string) {

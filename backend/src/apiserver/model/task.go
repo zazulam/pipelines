@@ -117,10 +117,11 @@ func (p *PodNames) Value() (driver.Value, error) {
 
 // TaskArtifactHydrated holds hydrated artifact info per task (not stored in DB)
 type TaskArtifactHydrated struct {
-	Value    *Artifact
-	Producer *IOProducer
-	Key      string
-	Type     apiv2beta1.IOType
+	Value              *Artifact
+	Producer           *IOProducer
+	Key                string
+	Type               apiv2beta1.IOType
+	CollectionPosition *int64
 }
 type IOProducer struct {
 	TaskName  string

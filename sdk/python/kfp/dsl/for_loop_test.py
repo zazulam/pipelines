@@ -267,6 +267,115 @@ class ForLoopTest(parameterized.TestCase):
     def test_name_is_loop_argument(self, name, expected_result):
         self.assertEqual(name_is_loop_argument(name), expected_result)
 
+    def test_collected_single_channel_preserves_loop_mode(self):
+        output = pipeline_channel.PipelineParameterChannel(
+            name='output',
+            channel_type='String',
+            task_name='producer',
+        )
+
+        collected = for_loop.Collected(output)
+
+        self.assertFalse(collected.is_static)
+        self.assertEqual(collected.output, output)
+        self.assertEqual(collected.outputs, [output])
+        self.assertEqual(collected.task_name, 'producer')
+
+    def test_collected_single_list_channel_preserves_loop_mode(self):
+        output = pipeline_channel.PipelineParameterChannel(
+            name='output',
+            channel_type='List[String]',
+            task_name='producer',
+        )
+
+        collected = for_loop.Collected(output)
+
+        self.assertFalse(collected.is_static)
+        self.assertEqual(collected.output, output)
+
+    def test_collected_accepts_ordered_channel_sequence(self):
+        outputs = [
+            pipeline_channel.PipelineArtifactChannel(
+                name='model',
+                channel_type='system.Model@0.0.1',
+                task_name=f'trainer-{index}',
+                is_artifact_list=False,
+            ) for index in range(3)
+        ]
+
+        collected = for_loop.Collected(outputs)
+
+        self.assertTrue(collected.is_static)
+        self.assertEqual(collected.outputs, outputs)
+        self.assertIsNone(collected.task_name)
+        self.assertTrue(collected.is_artifact_list)
+
+    def test_collected_accepts_variadic_channels(self):
+        first = pipeline_channel.PipelineParameterChannel(
+            name='output',
+            channel_type='String',
+            task_name='producer-1',
+        )
+        second = pipeline_channel.PipelineParameterChannel(
+            name='output',
+            channel_type='String',
+            task_name='producer-2',
+        )
+
+        collected = for_loop.Collected(first, second)
+
+        self.assertTrue(collected.is_static)
+        self.assertEqual(collected.outputs, [first, second])
+        self.assertEqual(collected.channel_type, 'LIST')
+
+    def test_collected_rejects_empty_sequence(self):
+        with self.assertRaisesRegex(ValueError,
+                                    'requires at least one PipelineChannel'):
+            for_loop.Collected([])
+
+    def test_collected_rejects_mismatched_channel_types(self):
+        string_output = pipeline_channel.PipelineParameterChannel(
+            name='output',
+            channel_type='String',
+            task_name='producer-1',
+        )
+        integer_output = pipeline_channel.PipelineParameterChannel(
+            name='output',
+            channel_type='Integer',
+            task_name='producer-2',
+        )
+
+        with self.assertRaisesRegex(TypeError, 'must have the same type'):
+            for_loop.Collected(string_output, integer_output)
+
+    @parameterized.parameters(
+        pipeline_channel.PipelineParameterChannel(
+            name='values',
+            channel_type='List[String]',
+            task_name='producer',
+        ),
+        pipeline_channel.PipelineArtifactChannel(
+            name='models',
+            channel_type='system.Model@0.0.1',
+            task_name='producer',
+            is_artifact_list=True,
+        ),
+    )
+    def test_collected_rejects_list_valued_static_member(self, output):
+        with self.assertRaisesRegex(TypeError,
+                                    'members must be scalar channels'):
+            for_loop.Collected([output])
+
+    def test_collected_rejects_nested_collected(self):
+        output = pipeline_channel.PipelineParameterChannel(
+            name='output',
+            channel_type='String',
+            task_name='producer',
+        )
+
+        with self.assertRaisesRegex(ValueError, 'cannot be nested'):
+            for_loop.Collected([for_loop.Collected(output)])
+
     @parameterized.parameters(
         {
             'subvar_name': 'a',

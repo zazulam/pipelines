@@ -41,6 +41,8 @@ type ParameterMetadata struct {
 type ArtifactMetadata struct {
 	Key                   string
 	DownloadedToWorkSpace bool
+	ArtifactProducers     []*apiV2beta1.IOProducer
+	CollectionPositions   []*int64
 	// InputArtifactSpec is mutually exclusive with ArtifactIterator
 	InputArtifactSpec *pipelinespec.TaskInputsSpec_InputArtifactSpec
 	ArtifactIterator  *pipelinespec.ArtifactIteratorSpec
